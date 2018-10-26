@@ -1,0 +1,139 @@
+---
+title: "Integrated population model for Auke Creek coho salmon"
+output:
+  html_document:
+    fig_caption: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    number_sections: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+```{r set_options, echo=FALSE, cache=TRUE}
+options(width = 120)
+```
+
+***
+
+[__Mark D. Scheuerell__](https://faculty.washington.edu/scheuerl/)  
+_Fish Ecology Division, Northwest Fisheries Science Center, National Marine Fisheries Service, National Oceanic and Atmospheric Administration, Seattle, WA, mark.scheuerell@noaa.gov_
+
+
+__Eric R. Buhle__  
+_Quantitative Science Inc., Northwest Fisheries Science Center, National Marine Fisheries Service, National Oceanic and Atmospheric Administration, Seattle, WA USA, eric.buhle@noaa.gov_
+
+***
+
+This is version `r paste0('0.',format(Sys.time(), '%y.%m.%d'))`.
+
+Note that author list and order subject to change.
+
+***
+
+# Requirements
+All analyses require the [R software](https://cran.r-project.org/) (v3.4+) for data retrieval, data processing, and summarizing model results, and the [Stan software](http://mc-stan.org/) (v2.17.0) for Hamiltonian Monte Carlo (HMC) sampling.
+
+We also need a few packages that are not included with the base installation of R, so we begin by installing them (if necessary) and then loading them.
+
+```{r load_pkgs, message=FALSE, warning=FALSE}
+## for inference
+if(!require("rstan")) {
+  install.packages("rstan")
+  library("rstan")
+}
+if(!require("loo")) {
+  install.packages("loo")
+  library("loo")
+}
+if(!require("salmonIPM")) {
+  devtools::install_github("ebuhle/salmonIPM")
+  library("salmonIPM")
+}
+## for data munging
+if(!require("readr")) {
+  install.packages("readr")
+  library("readr")
+}
+if(!require("dplyr")) {
+  install.packages("dplyr")
+  library("dplyr")
+}
+## for output/plotting
+if(!require("viridis")) {
+  install.packages("viridis")
+  library("viridis")
+}
+## for dir management
+if(!require("here")) {
+  install.packages("here")
+  library("here")
+}
+```
+
+# Load fish data
+
+We begin by reading in the fish data file assembled in Phase I. Specifically, it is a __.csv__ file with the following columns:
+
+ * `pop`: Numeric or character population ID.
+ * `year`: Numeric variable giving the year the fish spawned (i.e., the brood year).
+ * `A`: Spawning habitat size (either stream length or area).
+ * `S_tot_obs`: Total number (not density) of wild and hatchery-origin spawners.
+ * `n_age_minAge`...`n_age_maxAge`: Multiple columns of the observed age distribution, where minAge (maxAge) is the numeral total age in years of the youngest (oldest) spawners.
+ * `n_W_obs`: Observed frequency of natural-origin spawners.
+ * `n_H_obs`: Observed frequency of hatchery-origin spawners.
+ * `fit_p_HOS`: Logical or 0/1 indicating if, for each row in the data, the model should estimate p_HOS > 0.
+ * `F_rate`: Total harvest rate (proportion) of natural-origin fish.
+ * `B_take_obs`: Number of adults taken for hatchery broodstock.
+ 
+```{r get_data}
+## directory
+datadir <- here("data")
+## filename
+datafile <- dir(datadir)[grep("ipm", dir(datadir))]
+## read data
+fishdat <- read_csv(file.path(datadir, datafile))
+```
+
+These data contain some early years prior to the start of the escapement and age data, so we will trim to the data from 1994 onward.
+
+```{r trim_years}
+## trim early years
+fishdat <- filter(fishdat, year >= 1994)
+```
+
+
+# Temporary fixes
+
+At this point there are still a few missing pieces of necessary data, so here we make the following edits.
+
+## Spawning area
+
+We will set this to 1 so carrying capacity will be in units "fish" rather than "fish per length/area".
+
+```{r set_area}
+# set spawning area
+fishdat$A <- rep(1, dim(fishdat)[1])
+```
+
+## Harvest rates
+
+We are lacking harvest rates for 2014-2016, so we set them to 0.05 for all populations and years.
+
+```{r set_harvest}
+## remove years with no F estimates
+fishdat <- filter(fishdat, !is.na(F_rate))
+```
+
+
+# Fit model
+
+```{r fit_model, eval=TRUE}
+fit_ipm <- salmonIPM(fishdat, model = "IPM",
+                     chains = 3, iter = 1000, warmup = 500,
+                     control = list(adapt_delta = 0.95, stepsize = 0.01, max_treedepth = 13))
+```
+
