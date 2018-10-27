@@ -39,24 +39,12 @@ if(!require("here")) {
 ## directory
 datadir <- here("data")
 ## filename
-datafile <- dir(datadir)[grep("ipm", dir(datadir))]
+datafile <- dir(datadir)[grep("auke_coho_data", dir(datadir))]
 ## read data
 fishdat <- read_csv(file.path(datadir, datafile))
 
-## ----trim_years----------------------------------------------------------
-## trim early years
-fishdat <- filter(fishdat, year >= 1994)
-
-## ----set_area------------------------------------------------------------
-# set spawning area
-fishdat$A <- rep(1, dim(fishdat)[1])
-
-## ----set_harvest---------------------------------------------------------
-## remove years with no F estimates
-fishdat <- filter(fishdat, !is.na(F_rate))
-
 ## ----fit_model, eval=TRUE------------------------------------------------
-fit_ipm <- salmonIPM(fishdat, model = "IPM",
-                     chains = 3, iter = 1000, warmup = 500,
-                     control = list(adapt_delta = 0.95, stepsize = 0.01, max_treedepth = 13))
+fit_ipm <- salmonIPM(fishdat, model = "IPM", pool_pops = FALSE, 
+                     chains = 3, iter = 1500, warmup = 1000,
+                     control = list(adapt_delta = 0.999, stepsize = 0.01, max_treedepth = 13))
 
