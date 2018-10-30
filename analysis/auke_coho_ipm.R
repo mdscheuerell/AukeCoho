@@ -49,7 +49,7 @@ fit_ipm <- salmonIPM(fishdat, model = "IPM", pool_pops = FALSE,
                      control = list(adapt_delta = 0.999, stepsize = 0.01, max_treedepth = 13))
 
 ## ----print_fitted_model---------------------------------------------------
-print(fit_ipm, pars = c("B_rate_all", "p", "S_tot", "R_tot"), include = FALSE)
+print(fit_ipm, pars = c("B_rate_all","p","q","S_tot","R_tot"), include = FALSE)
 
 ## ----shinystan------------------------------------------------------------
 launch_shinystan(fit_ipm)
