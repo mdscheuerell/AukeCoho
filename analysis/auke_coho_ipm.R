@@ -14,7 +14,7 @@ if(!require("loo")) {
 }
 if(!require("salmonIPM")) {
   devtools::install_github("ebuhle/salmonIPM", 
-                           auth_token = "1a7a0f3054aca9b8767e8c6f19406367c0268bc4")
+                           auth_token = "")
   library("salmonIPM")
 }
 ## for data munging
