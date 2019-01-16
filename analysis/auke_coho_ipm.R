@@ -136,9 +136,9 @@ hist(log(extract1(fit_ipm,"a")), prob = TRUE, col = c1, las = 1,
      xlab = bquote(log(alpha)), ylab = "Probability density", main = "Intrinsic productivity")
 
 # Posterior of log(Rmax)
-hist(log(extract1(fit_ipm,"Rmax")), prob = TRUE, col = c1, las = 1, 
+hist(extract1(fit_ipm,"Rmax"), prob = TRUE, col = c1, las = 1, 
      cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5,
-     xlab = bquote(log(italic(R)[max]*" [ha"^-1*"]")), ylab = "", main = "Maximum recruits")
+     xlab = bquote(italic(R)[max]), ylab = "", main = "Maximum recruits")
 
 rm(c1)
 # dev.off()
@@ -148,8 +148,8 @@ rm(c1)
 # Time series of observed and estimated spawners and R/S
 #-------------------------------------------------------------------------
 
-dev.new(width = 7, height = 10)
-# png(filename="S_RS_timeseries.png", width=7, height=10, units="in", res=200, type="cairo-png")
+dev.new(width = 7, height = 7)
+# png(filename="S_RS_timeseries.png", width=7, height=7, units="in", res=200, type="cairo-png")
 par(mfrow = c(2,1), mar = c(4.5, 5.1, 0.5, 0.5))
 
 year <- fishdat$year
@@ -183,7 +183,7 @@ plot(year, apply(RS_IPM, 2, median), type = "l", lwd = 3, col = c_sr,
      las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n", 
      ylim = range(0, RS_obs, apply(RS_IPM, 2, quantile, 0.975), na.rm = TRUE),
      xlab = "Year", ylab = "Recruits per spawner")
-abline(h = 1, lty = 2)
+abline(h = 1, lty = 2, lwd = 2)
 polygon(c(year, rev(year)), 
         c(apply(RS_IPM, 2, quantile, 0.025), rev(apply(RS_IPM, 2, quantile, 0.975))),
         col = c_srci, border = NA)
