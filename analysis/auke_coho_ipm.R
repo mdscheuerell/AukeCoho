@@ -13,9 +13,16 @@ if(!require("loo")) {
   library("loo")
 }
 if(!require("salmonIPM")) {
-  devtools::install_github("ebuhle/salmonIPM", 
-                           auth_token = "")
+  if(file.exists("github_auth_token.txt")) 
+    github_auth_token <- scan("github_auth_token.txt", what = "character")
+  devtools::install_github("ebuhle/salmonIPM", subdir = "tree/spawner-smolt-models", 
+                           auth_token = github_auth_token)
   library("salmonIPM")
+}
+## for dir management
+if(!require("here")) {
+  install.packages("here")
+  library("here")
 }
 ## for data munging
 if(!require("readr")) {
@@ -36,11 +43,6 @@ if(!require("yarrr")) {
   install.packages("yarrr")
   library("yarrr")
 }
-## for dir management
-if(!require("here")) {
-  install.packages("here")
-  library("here")
-}
 
 ## ----get_data------------------------------------------------------------
 ## directory
@@ -56,7 +58,7 @@ fit_ipm <- salmonIPM(fishdat, model = "IPM", SR_fun = "Ricker", pool_pops = FALS
                      control = list(adapt_delta = 0.999, stepsize = 0.01, max_treedepth = 13))
 
 ## ----print_fitted_model---------------------------------------------------
-print(fit_ipm, pars = c("B_rate_all","p","q","S_tot","R_tot"), include = FALSE)
+print(fit_ipm, pars = c("B_rate_all","p","q","S","R"), include = FALSE)
 
 ## ----shinystan------------------------------------------------------------
 launch_shinystan(fit_ipm)
@@ -70,52 +72,52 @@ launch_shinystan(fit_ipm)
 dev.new(width = 7, height = 7)
 # png(filename="SR.png", width=7, height=7, units="in", res=200, type="cairo-png")
 SR_fun <- "Ricker"
-SR <- function(a, Rmax, S, A, SR_fun) 
+SR <- function(alpha, Rmax, S, A, SR_fun) 
 {
   switch(SR_fun, 
-         BH = a*S/(A + a*S/Rmax),
-         Ricker = a*(S/A)*exp(-a*S/(A*exp(1)*Rmax)))
+         BH = alpha*S/(A + alpha*S/Rmax),
+         Ricker = alpha*(S/A)*exp(-alpha*S/(A*exp(1)*Rmax)))
 }
 
 yy <- stan_data(fishdat, model = "RR")$year
-S_tot_obs <- fishdat$S_tot_obs
-R_tot_obs <- run_recon(fishdat)$R
-S_tot_IPM <- extract1(fit_ipm,"S_tot")
-R_tot_IPM <- extract1(fit_ipm,"R_tot")
+S_obs <- fishdat$S_obs
+R_obs <- run_recon(fishdat)$R
+S_IPM <- extract1(fit_ipm,"S")
+R_IPM <- extract1(fit_ipm,"R")
 
-S <- matrix(seq(0, max(S_tot_obs, apply(S_tot_IPM, 2, quantile, 0.975), na.rm = T)*1.02, length = 500),
+S <- matrix(seq(0, max(S_obs, apply(S_IPM, 2, quantile, 0.975), na.rm = T)*1.02, length = 500),
             nrow = sum(fit_ipm@sim$n_save - fit_ipm@sim$warmup2), ncol = 500, byrow = T)
-a <- as.vector(extract1(fit_ipm,"a"))
+alpha <- as.vector(extract1(fit_ipm,"alpha"))
 Rmax <- as.vector(extract1(fit_ipm,"Rmax"))
-R_IPM <- SR(a = a, Rmax = Rmax, S = S, A = 1, SR_fun)
+Rhat_IPM <- SR(alpha = alpha, Rmax = Rmax, S = S, A = 1, SR_fun)
 
-c_obs <- transparent("orangered3", trans.val = 0.4)
+c_obs <- transparent("orangered3", trans.val = 0.3)
 c_sr <- "blue4"
 c_est <- transparent(c_sr, trans.val = 0.5)
 c_srci <- transparent(c_sr, trans.val = 0.8)
 c_arr <- "darkgray"
 
-plot(S_tot_obs, R_tot_obs, pch = 16, col = c_obs, las = 1,
+plot(S_obs, R_obs, pch = 16, col = c_obs, las = 1,
      cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5, xaxs = "i", yaxs = "i",
      xlab = "Spawners", ylab = "Recruits", xlim = c(0, max(S)),
-     ylim = range(0, R_tot_obs, apply(R_tot_IPM, 2, quantile, 0.975), na.rm = T)*1.02)
+     ylim = range(0, R_obs, apply(R_IPM, 2, quantile, 0.975), na.rm = T)*1.02)
 
-points(apply(S_tot_IPM, 2, median), apply(R_tot_IPM, 2, median), pch = 16, col = c_est)
-arrows(S_tot_obs, R_tot_obs, apply(S_tot_IPM, 2, median), apply(R_tot_IPM, 2, median), col = c_arr, length = 0.1)
-segments(x0 = apply(S_tot_IPM, 2, quantile, 0.025), y0 = apply(R_tot_IPM, 2, median), 
-         x1 = apply(S_tot_IPM, 2, quantile, 0.975), col = c_est)
-segments(x0 = apply(S_tot_IPM, 2, median), y0 = apply(R_tot_IPM, 2, quantile, 0.025), 
-         y1 = apply(R_tot_IPM, 2, quantile, 0.975), col = c_est)
+points(apply(S_IPM, 2, median), apply(R_IPM, 2, median), pch = 16, col = c_est)
+arrows(S_obs, R_obs, apply(S_IPM, 2, median), apply(R_IPM, 2, median), col = c_arr, length = 0.1)
+segments(x0 = apply(S_IPM, 2, quantile, 0.025), y0 = apply(R_IPM, 2, median), 
+         x1 = apply(S_IPM, 2, quantile, 0.975), col = c_est)
+segments(x0 = apply(S_IPM, 2, median), y0 = apply(R_IPM, 2, quantile, 0.025), 
+         y1 = apply(R_IPM, 2, quantile, 0.975), col = c_est)
 
-lines(S[1,], apply(R_IPM, 2, median), lwd = 3, col = c_sr)
+lines(S[1,], apply(Rhat_IPM, 2, median), lwd = 3, col = c_sr)
 polygon(c(S[1,], rev(S[1,])), 
-        c(apply(R_IPM, 2, quantile, 0.025), rev(apply(R_IPM, 2, quantile, 0.975))), 
+        c(apply(Rhat_IPM, 2, quantile, 0.025), rev(apply(Rhat_IPM, 2, quantile, 0.975))), 
         col = c_srci, border = NA)
 legend("topright", legend = c("observations", "states (95% CI)"), 
        pch = 16, col = c(c_obs, c_est), lty = c(NA,1))
 
-rm(list = c("yy","S","a","Rmax","R_tot_obs","R_tot_IPM","S_tot_obs","S_tot_IPM",
-            "R_IPM","c_obs","c_sr","c_est","c_srci","c_arr"))
+rm(list = c("yy","S","alpha","Rmax","R_obs","R_IPM","S_obs","S_IPM",
+            "Rhat_IPM","c_obs","c_sr","c_est","c_srci","c_arr"))
 
 # dev.off()
 
@@ -130,13 +132,13 @@ par(mfrow = c(1,2), mar = c(5.1,4.5,1,0))
 
 c1 <- transparent("blue4", trans.val = 0.3)
 
-# Posterior of log(a)
-hist(log(extract1(fit_ipm,"a")), prob = TRUE, col = c1, las = 1, 
+# Posterior of log(alpha)
+hist(log(extract1(fit_ipm,"alpha")), 15, prob = TRUE, col = c1, las = 1, 
      cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5,
      xlab = bquote(log(alpha)), ylab = "Probability density", main = "Intrinsic productivity")
 
 # Posterior of log(Rmax)
-hist(extract1(fit_ipm,"Rmax"), prob = TRUE, col = c1, las = 1, 
+hist(extract1(fit_ipm,"Rmax"), 15, prob = TRUE, col = c1, las = 1, 
      cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5,
      xlab = bquote(italic(R)[max]), ylab = "", main = "Maximum recruits")
 
@@ -153,27 +155,27 @@ dev.new(width = 7, height = 7)
 par(mfrow = c(2,1), mar = c(4.5, 5.1, 0.5, 0.5))
 
 year <- fishdat$year
-S_tot_obs <- fishdat$S_tot_obs
-R_tot_obs <- run_recon(fishdat)$R
-RS_obs <- R_tot_obs/S_tot_obs
-S_tot_IPM <- extract1(fit_ipm,"S_tot")
-R_tot_IPM <- extract1(fit_ipm,"R_tot")
-RS_IPM <- R_tot_IPM/S_tot_IPM
+S_obs <- fishdat$S_obs
+R_obs <- run_recon(fishdat)$R
+RS_obs <- R_obs/S_obs
+S_IPM <- extract1(fit_ipm,"S")
+R_IPM <- extract1(fit_ipm,"R")
+RS_IPM <- R_IPM/S_IPM
 
 c_obs <- transparent("orangered3", trans.val = 0.3)
 c_sr <- "blue4"
 c_srci <- transparent(c_sr, trans.val = 0.8)
 
 # Spawners
-plot(year, apply(S_tot_IPM, 2, median), type = "l", lwd = 3, col = c_sr, 
+plot(year, apply(S_IPM, 2, median), type = "l", lwd = 3, col = c_sr, 
      las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n",
-     ylim = range(0, S_tot_obs, apply(S_tot_IPM, 2, quantile, 0.975)),
+     ylim = range(0, S_obs, apply(S_IPM, 2, quantile, 0.975)),
      xlab = "", ylab = "")
 mtext("Spawners", side = 2, line = 3.5, cex = par("cex")*1.5)
 polygon(c(year, rev(year)), 
-        c(apply(S_tot_IPM, 2, quantile, 0.025), rev(apply(S_tot_IPM, 2, quantile, 0.975))),
+        c(apply(S_IPM, 2, quantile, 0.025), rev(apply(S_IPM, 2, quantile, 0.975))),
         col = c_srci, border = NA)
-points(year, S_tot_obs, pch = 16, cex = 1.2, col = c_obs)
+points(year, S_obs, pch = 16, cex = 1.2, col = c_obs)
 axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.5)
 rug(year[year %% 10 != 0], ticksize = -0.01)
 rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
@@ -192,7 +194,7 @@ axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.5)
 rug(year[year %% 10 != 0], ticksize = -0.01)
 rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
 
-rm(list = c("year","S_tot_obs","R_tot_obs","RS_obs","S_tot_IPM","R_tot_IPM","RS_IPM",
+rm(list = c("year","S_obs","R_obs","RS_obs","S_IPM","R_IPM","RS_IPM",
             "c_obs","c_sr","c_srci"))
 
 # dev.off()

@@ -1,4 +1,4 @@
-year,pop,A,S_tot_obs,n_age2_obs,n_age3_obs,n_H_obs,n_W_obs,fit_p_HOS,F_rate,B_take_obs,coho_troll_catch,coho_seine_catch,coho_gillnet_catch,coho_sport_catch
+year,pop,A,S_obs,n_age2_obs,n_age3_obs,n_H_obs,n_W_obs,fit_p_HOS,F_rate,B_take_obs,coho_troll_catch,coho_seine_catch,coho_gillnet_catch,coho_sport_catch
 1980,1,1,964,698,266,0,0,0,0,70,51,0,13,6
 1981,1,1,795,578,217,0,0,0,0,300,256,0,29,15
 1982,1,1,801,462,339,0,0,0,0,290,138,120,23,9
