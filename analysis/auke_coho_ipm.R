@@ -15,7 +15,7 @@ if(!require("loo")) {
 if(!require("salmonIPM")) {
   if(file.exists("github_auth_token.txt")) 
     github_auth_token <- scan("github_auth_token.txt", what = "character")
-  devtools::install_github("ebuhle/salmonIPM", subdir = "tree/spawner-smolt-models", 
+  devtools::install_github("ebuhle/salmonIPM", ref = "spawner-smolt-models", 
                            auth_token = github_auth_token)
   library("salmonIPM")
 }
