@@ -131,10 +131,10 @@ SR <- function(alpha, Rmax, S, A, SR_fun)
 }
 
 yy <- stan_data(fishdata, model = "RR")$year
-S_obs <- fishdata$S_obs
-R_obs <- run_recon(fishdata)$R
-S_IPM <- extract1(fit_ipm,"S")
-R_IPM <- extract1(fit_ipm,"R")
+S_obs <- fishdata$S_obs[fishdata$obs_type=="past"]
+R_obs <- run_recon(fishdata)$R[fishdata$obs_type=="past"]
+S_IPM <- extract1(fit_ipm,"S")[,fishdata$obs_type=="past"]
+R_IPM <- extract1(fit_ipm,"R")[,fishdata$obs_type=="past"]
 
 S <- matrix(seq(0, max(S_obs, apply(S_IPM, 2, quantile, 0.975), na.rm = T)*1.02, length = 500),
             nrow = sum(fit_ipm@sim$n_save - fit_ipm@sim$warmup2), ncol = 500, byrow = T)
