@@ -91,28 +91,39 @@ env_data <- na.omit(env_data)
 ## Truncate fish data to non-missing covariate data
 fishdata_env <- fishdata[fishdata$year %in% na.omit(env_data)$brood_year,]
 
-## ----fit_model, eval=TRUE------------------------------------------------
-fit_ipm <- salmonIPM(fishdata, model = "IPM", SR_fun = "Ricker", pool_pops = FALSE, 
+## ----fit_spawner_model, eval=TRUE------------------------------------------------
+fit_SS <- salmonIPM(fishdata, stan_model = "IPM_SS_np", SR_fun = "Ricker", 
                      chains = 3, iter = 1500, warmup = 1000,
                      control = list(adapt_delta = 0.99))
 
 ## ----print_fitted_model---------------------------------------------------
-print(fit_ipm, pars = c("B_rate_all","p","q","S","R"), include = FALSE)
+print(fit_SS, pars = c("B_rate_all","p_HOS","p","q","S","R"), include = FALSE)
 
 ## ----shinystan------------------------------------------------------------
-launch_shinystan(fit_ipm)
+launch_shinystan(fit_SS)
 
-## ----fit_model_with_covariates, eval=TRUE------------------------------------------------
-fit_ipm_env <- salmonIPM(fishdata_env, env_data = env_data[,-1,drop = FALSE], 
-                         model = "IPM", SR_fun = "Ricker", pool_pops = FALSE, 
-                         chains = 3, iter = 1500, warmup = 1000,
-                         control = list(adapt_delta = 0.99))
+## ----fit_spawner_smolt_age_model, eval=TRUE------------------------------------------------
+fit_SMaS <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "Ricker", 
+                    chains = 3, iter = 1500, warmup = 1000,
+                    control = list(adapt_delta = 0.99))
 
 ## ----print_fitted_model---------------------------------------------------
-print(fit_ipm_env, pars = c("B_rate_all","p","q","S","R"), include = FALSE)
+print(fit_SMaS, pars = c("B_rate_all","p_HOS","p","q","S","R"), include = FALSE)
 
 ## ----shinystan------------------------------------------------------------
-launch_shinystan(fit_ipm_env)
+launch_shinystan(fit_SMaS)
+
+## ----fit_model_with_covariates, eval=TRUE------------------------------------------------
+# fit_ipm_env <- salmonIPM(fishdata_env, env_data = env_data[,-1,drop = FALSE], 
+#                          model = "IPM", SR_fun = "Ricker", pool_pops = FALSE, 
+#                          chains = 3, iter = 1500, warmup = 1000,
+#                          control = list(adapt_delta = 0.99))
+
+## ----print_fitted_model---------------------------------------------------
+# print(fit_ipm_env, pars = c("B_rate_all","p","q","S","R"), include = FALSE)
+
+## ----shinystan------------------------------------------------------------
+# launch_shinystan(fit_ipm_env)
 
 ## ----FIGURES--------------------------------------------------------------
 
