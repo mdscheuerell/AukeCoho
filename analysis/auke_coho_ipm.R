@@ -103,7 +103,7 @@ print(fit_SS, pars = c("B_rate_all","p_HOS","p","q","S","R"), include = FALSE)
 launch_shinystan(fit_SS)
 
 ## ----fit_spawner_smolt_age_model, eval=TRUE------------------------------------------------
-fit_SMaS <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "Ricker", 
+fit_SMaS <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "BH", 
                     chains = 3, iter = 1500, warmup = 1000,
                     control = list(adapt_delta = 0.99))
 
