@@ -113,6 +113,8 @@ launch_shinystan(fit_BH)
 
 dev.new(width = 7, height = 7)
 # png(filename="SR.png", width=7, height=7, units="in", res=200, type="cairo-png")
+par(mar = c(5,5,2,1))
+  
 SR_fun <- "BH"
 SR <- function(alpha, Rmax, S, A, SR_fun) 
 {
@@ -121,17 +123,30 @@ SR <- function(alpha, Rmax, S, A, SR_fun)
          Ricker = alpha*(S/A)*exp(-alpha*S/(A*exp(1)*Rmax)))
 }
 
-yy <- stan_data(fishdata, model = "RR")$year
-S_obs <- fishdata$S_obs[fishdata$obs_type=="past"]
-R_obs <- run_recon(fishdata)$R[fishdata$obs_type=="past"]
-S_IPM <- extract1(fit_ipm,"S")[,fishdata$obs_type=="past"]
-R_IPM <- extract1(fit_ipm,"R")[,fishdata$obs_type=="past"]
+S_obs <- fishdata$S_obs
+M_obs <- fishdata$M_obs
+n_Mage_obs <- stan_data(fishdata, stan_model = "IPM_SMaS_np")$n_Mage_obs
+q_M_obs <- sweep(n_Mage_obs, 1, rowSums(n_Mage_obs), "/")
+N <- nrow(fishdata)
+M0_obs <- rep(NA,N)
+for(i in 1:N)
+  M0_obs[i] <- ifelse((i + 2) <= N, M_obs[i+2]*q_M_obs[i+2,1], NA) + 
+               ifelse((i + 3) <= N, M_obs[i+3]*q_M_obs[i+3,2], NA)
+S_IPM <- extract1(fit_BH,"S")
+M_IPM <- extract1(fit_BH,"M")
+M0_IPM <- matrix(NA, nrow(M_IPM), ncol(M_IPM))
+q_M_IPM <- extract1(fit_BH,"q_M")
+for(i in 1:N) {
+  if((i + 2) <= N) m2 <- M_IPM[,i+2]*q_M_IPM[,i+2,1] else m2 <- NA
+  if((i + 3) <= N) m3 <- M_IPM[,i+3]*q_M_IPM[,i+3,2] else m3 <- NA
+  M0_IPM[,i] <- m2 + m3
+}
 
 S <- matrix(seq(0, max(S_obs, apply(S_IPM, 2, quantile, 0.975), na.rm = T)*1.02, length = 500),
-            nrow = sum(fit_ipm@sim$n_save - fit_ipm@sim$warmup2), ncol = 500, byrow = T)
-alpha <- as.vector(extract1(fit_ipm,"alpha"))
-Rmax <- as.vector(extract1(fit_ipm,"Rmax"))
-Rhat_IPM <- SR(alpha = alpha, Rmax = Rmax, S = S, A = 1, SR_fun)
+            nrow = sum(fit_BH@sim$n_save - fit_BH@sim$warmup2), ncol = 500, byrow = T)
+alpha <- as.vector(extract1(fit_BH,"alpha"))
+Rmax <- as.vector(extract1(fit_BH,"Rmax"))
+M0hat_IPM <- SR(alpha = alpha, Rmax = Rmax, S = S, A = 1, SR_fun)
 
 c_obs <- transparent("orangered3", trans.val = 0.3)
 c_sr <- "blue4"
@@ -139,27 +154,32 @@ c_est <- transparent(c_sr, trans.val = 0.5)
 c_srci <- transparent(c_sr, trans.val = 0.8)
 c_arr <- "darkgray"
 
-plot(S_obs, R_obs, pch = 16, col = c_obs, las = 1,
+plot(S_obs, M0_obs, pch = 16, col = c_obs, las = 1,
      cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5, xaxs = "i", yaxs = "i",
-     xlab = "Spawners", ylab = "Recruits", xlim = c(0, max(S)),
-     ylim = range(0, R_obs, apply(R_IPM, 2, quantile, 0.975), na.rm = T)*1.02)
+     xlab = "Spawners", ylab = "", xlim = c(0, max(S)),
+     ylim = range(0, M0_obs, apply(M0_IPM, 2, quantile, 0.975, na.rm = T), na.rm = T)*1.02)
+mtext("Smolts", side = 2, line = 3.5, cex = 1.5)
 
-points(apply(S_IPM, 2, median), apply(R_IPM, 2, median), pch = 16, col = c_est)
-arrows(S_obs, R_obs, apply(S_IPM, 2, median), apply(R_IPM, 2, median), col = c_arr, length = 0.1)
-segments(x0 = apply(S_IPM, 2, quantile, 0.025), y0 = apply(R_IPM, 2, median), 
+points(apply(S_IPM, 2, median), apply(M0_IPM, 2, median), pch = 16, col = c_est)
+arrows(S_obs, M0_obs, apply(S_IPM, 2, median), apply(M0_IPM, 2, median, na.rm = T), 
+       col = c_arr, length = 0.1)
+segments(x0 = apply(S_IPM, 2, quantile, 0.025, na.rm = T), 
+         y0 = apply(M0_IPM, 2, median, na.rm = T), 
          x1 = apply(S_IPM, 2, quantile, 0.975), col = c_est)
-segments(x0 = apply(S_IPM, 2, median), y0 = apply(R_IPM, 2, quantile, 0.025), 
-         y1 = apply(R_IPM, 2, quantile, 0.975), col = c_est)
+segments(x0 = apply(S_IPM, 2, median), 
+         y0 = apply(M0_IPM, 2, quantile, 0.025, na.rm = T), 
+         y1 = apply(M0_IPM, 2, quantile, 0.975, na.rm = T), col = c_est)
 
-lines(S[1,], apply(Rhat_IPM, 2, median), lwd = 3, col = c_sr)
+lines(S[1,], apply(M0hat_IPM, 2, median, na.rm = T), lwd = 3, col = c_sr)
 polygon(c(S[1,], rev(S[1,])), 
-        c(apply(Rhat_IPM, 2, quantile, 0.025), rev(apply(Rhat_IPM, 2, quantile, 0.975))), 
+        c(apply(M0hat_IPM, 2, quantile, 0.025, na.rm = T), 
+          rev(apply(M0hat_IPM, 2, quantile, 0.975, na.rm = T))), 
         col = c_srci, border = NA)
 legend("topright", legend = c("observations", "states (95% CI)"), 
        pch = 16, col = c(c_obs, c_est), lty = c(NA,1))
 
-rm(list = c("yy","S","alpha","Rmax","R_obs","R_IPM","S_obs","S_IPM",
-            "Rhat_IPM","c_obs","c_sr","c_est","c_srci","c_arr"))
+rm(list = c("S","alpha","Rmax","M0_obs","M0_IPM","S_obs","S_IPM","n_Mage_obs","q_M_obs",
+            "q_M_IPM","M0hat_IPM","c_obs","c_sr","c_est","c_srci","c_arr","m2","m3"))
 
 # dev.off()
 
@@ -175,12 +195,12 @@ par(mfrow = c(1,2), mar = c(5.1,4.5,1,0))
 c1 <- transparent("blue4", trans.val = 0.3)
 
 # Posterior of log(alpha)
-hist(log(extract1(fit_ipm,"alpha")), 15, prob = TRUE, col = c1, las = 1, 
+hist(log(extract1(fit_BH,"alpha")), 15, prob = TRUE, col = c1, las = 1, 
      cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5,
      xlab = bquote(log(alpha)), ylab = "Probability density", main = "Intrinsic productivity")
 
 # Posterior of log(Rmax)
-hist(extract1(fit_ipm,"Rmax"), 15, prob = TRUE, col = c1, las = 1, 
+hist(extract1(fit_BH,"Rmax"), 15, prob = TRUE, col = c1, las = 1, 
      cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5,
      xlab = bquote(italic(R)[max]), ylab = "", main = "Maximum recruits")
 
@@ -200,8 +220,8 @@ year <- fishdata$year
 S_obs <- fishdata$S_obs
 R_obs <- run_recon(fishdata)$R
 RS_obs <- R_obs/S_obs
-S_IPM <- extract1(fit_ipm,"S")
-R_IPM <- extract1(fit_ipm,"R")
+S_IPM <- extract1(fit_BH,"S")
+R_IPM <- extract1(fit_BH,"R")
 RS_IPM <- R_IPM/S_IPM
 
 c_obs <- transparent("orangered3", trans.val = 0.3)
@@ -254,7 +274,7 @@ par(mar = c(5.1,6,1,0))
 
 c1 <- transparent("blue4", trans.val = 0.3)
 
-hist(extract1(fit_ipm,"S"), 15, prob = TRUE, col = c1, las = 1, 
+hist(extract1(fit_BH,"S"), 15, prob = TRUE, col = c1, las = 1, 
      cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5,
      xlab = "Spawners", ylab = "", main = "2019 Forecast")
 mtext("Probability density", side = 2, line = 4.5, cex = par("cex")*1.5)
@@ -273,7 +293,7 @@ par(mar = c(4.5, 4.5, 0.5, 0.5))
 
 year <- fishdata$year
 p_jack_obs <- run_recon(fishdata)$p_age2_obs
-p_jack_IPM <- extract1(fit_ipm,"q")[,,1]
+p_jack_IPM <- extract1(fit_BH,"q")[,,1]
 
 c_obs <- transparent("orangered3", trans.val = 0.3)
 c_sr <- "blue4"
