@@ -1,5 +1,5 @@
 ## ----set_options, echo=FALSE, cache=TRUE---------------------------------
-options(width = 120)
+options(width = 100)
 if(Sys.info()["sysname"] == "Windows") options(device = windows)
 
 ## ----load_pkgs, message=FALSE, warning=FALSE-----------------------------
@@ -108,7 +108,9 @@ fit_SMaS <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "Ricker",
                     control = list(adapt_delta = 0.99))
 
 ## ----print_fitted_model---------------------------------------------------
-print(fit_SMaS, pars = c("B_rate_all","p_HOS","p","q","S","R"), include = FALSE)
+print(fit_SMaS, 
+      pars = c("B_rate_all","p_HOS","p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R"), 
+      include = FALSE)
 
 ## ----shinystan------------------------------------------------------------
 launch_shinystan(fit_SMaS)
