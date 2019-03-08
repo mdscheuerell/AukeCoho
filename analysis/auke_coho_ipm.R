@@ -93,13 +93,11 @@ fishdata_env <- fishdata[fishdata$year %in% na.omit(env_data)$brood_year,]
 
 ## ----fit_spawner_smolt_age_model, eval=TRUE------------------------------------------------
 fit_BH <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "BH", 
-                    chains = 3, iter = 1500, warmup = 1000,
+                    chains = 3, cores = 1, iter = 1500, warmup = 1000,
                     control = list(adapt_delta = 0.99))
 
 ## ----print_fitted_model---------------------------------------------------
-print(fit_BH, 
-      pars = c("B_rate_all","p_HOS","p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R"), 
-      include = FALSE)
+print(fit_BH, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R"), include = FALSE)
 
 ## ----shinystan------------------------------------------------------------
 launch_shinystan(fit_BH)
