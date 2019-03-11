@@ -54,46 +54,46 @@ datafile <- dir(datadir)[grep("auke_coho_data", dir(datadir))]
 fishdata <- read_csv(file.path(datadir, datafile))
 # fishdata <- fishdata[fishdata$year <= 2019,]  # truncate future years
 ## read covariate data
-pdofile <- dir(datadir)[grep("pdo", dir(datadir))]
-pdodat <- read_csv(file.path(datadir, pdofile))
-covfile <- dir(datadir)[grep("covariates", dir(datadir))]
-cov_raw <- read_csv(file.path(datadir, covfile))
-## Subset PDO to Nov-Feb and index to outmigration year
-pdo <- pdodat[pdodat$month %in% c(11,12,1,2),]
-pdo$winter_year <- ifelse(pdo$month %in% 11:12, pdo$year, pdo$year - 1)
-pdo <- aggregate(pdo ~ winter_year, data = pdo, mean)
-
-## Add PDO to covariate data
-cov_raw$winter_pdo <- pdo$pdo[match(cov_raw$year, pdo$winter_year)]
-covdata <- data.frame(brood_year = fishdata$year[fishdata$obs_type == "past"])
-
-covdata$parr0_year <- covdata$brood_year + 1
-covdata$parr1_year <- covdata$brood_year + 2
-covdata$smolt1_year <- covdata$brood_year + 2
-covdata$smolt2_year <- covdata$brood_year + 3
-
-covdata$parr0_stream_temp <- cov_raw$mean_stream_temp[match(covdata$parr0_year, cov_raw$year)]
-covdata$parr1_stream_temp <- cov_raw$mean_stream_temp[match(covdata$parr1_year, cov_raw$year)]
-covdata$mean_stream_temp <- rowMeans(covdata[,c("parr0_stream_temp","parr1_stream_temp")])
-
-covdata$smolt1_hpc_release <- cov_raw$hpc_release[match(covdata$smolt1_year, cov_raw$year)]
-covdata$smolt2_hpc_release <- cov_raw$hpc_release[match(covdata$smolt2_year, cov_raw$year)]
-covdata$mean_hpc_release <- rowMeans(covdata[,c("smolt1_hpc_release","smolt2_hpc_release")])/1e6
-
-covdata$smolt1_pdo <- pdo$pdo[match(covdata$smolt1_year, cov_raw$year)]
-covdata$smolt2_pdo <- pdo$pdo[match(covdata$smolt2_year, cov_raw$year)]
-covdata$mean_pdo <- rowMeans(covdata[,c("smolt1_pdo","smolt2_pdo")])
-
-env_data <- covdata[,c("brood_year","mean_stream_temp","mean_hpc_release","mean_pdo")]
-env_data[,-1] <- scale(env_data[,-1])
-env_data <- na.omit(env_data)
-
-## Truncate fish data to non-missing covariate data
-fishdata_env <- fishdata[fishdata$year %in% na.omit(env_data)$brood_year,]
+# pdofile <- dir(datadir)[grep("pdo", dir(datadir))]
+# pdodat <- read_csv(file.path(datadir, pdofile))
+# covfile <- dir(datadir)[grep("covariates", dir(datadir))]
+# cov_raw <- read_csv(file.path(datadir, covfile))
+# ## Subset PDO to Nov-Feb and index to outmigration year
+# pdo <- pdodat[pdodat$month %in% c(11,12,1,2),]
+# pdo$winter_year <- ifelse(pdo$month %in% 11:12, pdo$year, pdo$year - 1)
+# pdo <- aggregate(pdo ~ winter_year, data = pdo, mean)
+# 
+# ## Add PDO to covariate data
+# cov_raw$winter_pdo <- pdo$pdo[match(cov_raw$year, pdo$winter_year)]
+# covdata <- data.frame(brood_year = fishdata$year[fishdata$obs_type == "past"])
+# 
+# covdata$parr0_year <- covdata$brood_year + 1
+# covdata$parr1_year <- covdata$brood_year + 2
+# covdata$smolt1_year <- covdata$brood_year + 2
+# covdata$smolt2_year <- covdata$brood_year + 3
+# 
+# covdata$parr0_stream_temp <- cov_raw$mean_stream_temp[match(covdata$parr0_year, cov_raw$year)]
+# covdata$parr1_stream_temp <- cov_raw$mean_stream_temp[match(covdata$parr1_year, cov_raw$year)]
+# covdata$mean_stream_temp <- rowMeans(covdata[,c("parr0_stream_temp","parr1_stream_temp")])
+# 
+# covdata$smolt1_hpc_release <- cov_raw$hpc_release[match(covdata$smolt1_year, cov_raw$year)]
+# covdata$smolt2_hpc_release <- cov_raw$hpc_release[match(covdata$smolt2_year, cov_raw$year)]
+# covdata$mean_hpc_release <- rowMeans(covdata[,c("smolt1_hpc_release","smolt2_hpc_release")])/1e6
+# 
+# covdata$smolt1_pdo <- pdo$pdo[match(covdata$smolt1_year, cov_raw$year)]
+# covdata$smolt2_pdo <- pdo$pdo[match(covdata$smolt2_year, cov_raw$year)]
+# covdata$mean_pdo <- rowMeans(covdata[,c("smolt1_pdo","smolt2_pdo")])
+# 
+# env_data <- covdata[,c("brood_year","mean_stream_temp","mean_hpc_release","mean_pdo")]
+# env_data[,-1] <- scale(env_data[,-1])
+# env_data <- na.omit(env_data)
+# 
+# ## Truncate fish data to non-missing covariate data
+# fishdata_env <- fishdata[fishdata$year %in% na.omit(env_data)$brood_year,]
 
 ## ----fit_spawner_smolt_age_model, eval=TRUE------------------------------------------------
 fit_BH <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "BH", 
-                    chains = 3, cores = 1, iter = 1500, warmup = 500,
+                    chains = 3, cores = 3, iter = 1500, warmup = 500,
                     control = list(adapt_delta = 0.99))
 
 ## ----print_fitted_model---------------------------------------------------
