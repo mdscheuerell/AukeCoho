@@ -210,30 +210,42 @@ rm(c1)
 
 
 #-------------------------------------------------------------------------
-# Time series of observed and estimated spawners and R/S
+# Time series of observed and estimated smolts and spawners
 #-------------------------------------------------------------------------
 
 dev.new(width = 7, height = 7)
-# png(filename="S_RS_timeseries.png", width=7, height=7, units="in", res=200, type="cairo-png")
+# png(filename="M_S_timeseries.png", width=7, height=7, units="in", res=200, type="cairo-png")
 par(mfrow = c(2,1), mar = c(4.5, 5.1, 0.5, 0.5))
 
 year <- fishdata$year
+M_obs <- fishdata$M_obs/1000
 S_obs <- fishdata$S_obs
-R_obs <- run_recon(fishdata)$R
-RS_obs <- R_obs/S_obs
+M_IPM <- extract1(fit_BH,"M")/1000
 S_IPM <- extract1(fit_BH,"S")
-R_IPM <- extract1(fit_BH,"R")
-RS_IPM <- R_IPM/S_IPM
 
 c_obs <- transparent("orangered3", trans.val = 0.3)
 c_sr <- "blue4"
 c_srci <- transparent(c_sr, trans.val = 0.8)
 
+# Smolts
+plot(year, apply(M_IPM, 2, median), type = "l", lwd = 3, col = c_sr, 
+     las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n", 
+     ylim = range(0, M_obs, apply(M_IPM, 2, quantile, 0.975), na.rm = TRUE),
+     xlab = "", ylab = "Smolts (thousands)")
+abline(v = max(fishdata$year[fishdata$obs_type == "past"]), col = "darkgray", lwd = 2)
+polygon(c(year, rev(year)), 
+        c(apply(M_IPM, 2, quantile, 0.025), rev(apply(M_IPM, 2, quantile, 0.975))),
+        col = c_srci, border = NA)
+points(year, M_obs, pch = 16, cex = 1.2, col = c_obs)
+axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.5)
+rug(year[year %% 10 != 0], ticksize = -0.01)
+rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
+
 # Spawners
 plot(year, apply(S_IPM, 2, median), type = "l", lwd = 3, col = c_sr, 
      las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n",
      ylim = range(0, S_obs, apply(S_IPM, 2, quantile, 0.975), na.rm = TRUE),
-     xlab = "", ylab = "")
+     xlab = "Year", ylab = "")
 mtext("Spawners", side = 2, line = 3.5, cex = par("cex")*1.5)
 abline(v = max(fishdata$year[fishdata$obs_type == "past"]), col = "darkgray", lwd = 2)
 polygon(c(year, rev(year)), 
@@ -244,23 +256,7 @@ axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.5)
 rug(year[year %% 10 != 0], ticksize = -0.01)
 rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
 
-# Recruits per spawner
-plot(year, apply(RS_IPM, 2, median), type = "l", lwd = 3, col = c_sr, 
-     las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n", 
-     ylim = range(0, RS_obs, apply(RS_IPM, 2, quantile, 0.975), na.rm = TRUE),
-     xlab = "Year", ylab = "Recruits per spawner")
-abline(h = 1, lty = 2, lwd = 2)
-abline(v = max(fishdata$year[fishdata$obs_type == "past"]), col = "darkgray", lwd = 2)
-polygon(c(year, rev(year)), 
-        c(apply(RS_IPM, 2, quantile, 0.025), rev(apply(RS_IPM, 2, quantile, 0.975))),
-        col = c_srci, border = NA)
-points(year, RS_obs, pch = 16, cex = 1.2, col = c_obs)
-axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.5)
-rug(year[year %% 10 != 0], ticksize = -0.01)
-rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
-
-rm(list = c("year","S_obs","R_obs","RS_obs","S_IPM","R_IPM","RS_IPM",
-            "c_obs","c_sr","c_srci"))
+rm(list = c("year","S_obs","M_obs","S_IPM","M_IPM","c_obs","c_sr","c_srci"))
 
 # dev.off()
 
