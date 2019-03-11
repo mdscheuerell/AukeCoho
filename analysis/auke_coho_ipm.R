@@ -93,11 +93,12 @@ fishdata_env <- fishdata[fishdata$year %in% na.omit(env_data)$brood_year,]
 
 ## ----fit_spawner_smolt_age_model, eval=TRUE------------------------------------------------
 fit_BH <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "BH", 
-                    chains = 3, cores = 1, iter = 1500, warmup = 1000,
+                    chains = 3, cores = 1, iter = 1500, warmup = 500,
                     control = list(adapt_delta = 0.99))
 
 ## ----print_fitted_model---------------------------------------------------
-print(fit_BH, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R"), include = FALSE)
+print(fit_BH, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R"), include = FALSE,
+      probs = c(0.025,0.5,0.975))
 
 ## ----shinystan------------------------------------------------------------
 launch_shinystan(fit_BH)
@@ -183,7 +184,7 @@ rm(list = c("S","alpha","Rmax","M0_obs","M0_IPM","S_obs","S_IPM","n_Mage_obs","q
 
 
 #-------------------------------------------------------------------------
-# Posterior distributions of S-R parameters
+# Posterior distributions (and priors) of S-R parameters
 #-------------------------------------------------------------------------
 
 dev.new(width = 10, height = 5)
@@ -196,11 +197,13 @@ c1 <- transparent("blue4", trans.val = 0.3)
 hist(log(extract1(fit_BH,"alpha")), 15, prob = TRUE, col = c1, las = 1, 
      cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5,
      xlab = bquote(log(alpha)), ylab = "Probability density", main = "Intrinsic productivity")
+curve(dnorm(x,2,2), col = "gray", lwd = 2, add = TRUE)
 
 # Posterior of log(Rmax)
 hist(extract1(fit_BH,"Rmax"), 15, prob = TRUE, col = c1, las = 1, 
      cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5,
-     xlab = bquote(italic(R)[max]), ylab = "", main = "Maximum recruits")
+     xlab = bquote(italic(R)[max]), ylab = "", main = "Maximum smolts")
+curve(dlnorm(x,2,3), col = "gray", lwd = 2, add = TRUE)
 
 rm(c1)
 # dev.off()
