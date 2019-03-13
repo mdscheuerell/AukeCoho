@@ -59,10 +59,9 @@ env_data$winter_pdo <- pdo$pdo[match(env_data$year, pdo$winter_year)]
 env_data$hpc_release <- (env_data$hpc_release - mean(env_data$hpc_release))/1e8
 env_data$mean_stream_temp <- scale(env_data$mean_stream_temp, scale = FALSE)
 env_data$winter_pdo <- scale(env_data$winter_pdo)
-env_data <- as.matrix(env_data[,-1])
 
 ## Truncate fish data to non-missing covariate data
-fishdata_env <- fishdata[fishdata$year %in% na.omit(env_data)$year,]
+fishdata_env <- fishdata[fishdata$year %in% env_data$year,]
 
 ## ----fit_density_independent, eval=TRUE------------------------------------------------
 fit_exp <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "exp", 
