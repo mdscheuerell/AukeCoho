@@ -4,21 +4,10 @@ if(Sys.info()["sysname"] == "Windows") options(device = windows)
 
 ## ----load_pkgs, message=FALSE, warning=FALSE-----------------------------
 ## for inference
-if(!require("rstan")) {
-  install.packages("rstan")
-  library("rstan")
-}
-if(!require("loo")) {
-  install.packages("loo")
-  library("loo")
-}
-if(!require("salmonIPM")) {
-  if(file.exists("github_auth_token.txt")) 
-    github_auth_token <- scan("github_auth_token.txt", what = "character")
-  devtools::install_github("ebuhle/salmonIPM", ref = "spawner-smolt-models", 
-                           auth_token = github_auth_token)
-  library("salmonIPM")
-}
+#unleash below to update master branch version of IPM
+detach(package:salmonIPM, unload = TRUE)
+devtools::install_github("ebuhle/salmonIPM@ICchinook-models")
+library("salmonIPM")
 ## for dir management
 if(!require("here")) {
   install.packages("here")
@@ -52,56 +41,100 @@ datadir <- here("data")
 ## read data
 datafile <- dir(datadir)[grep("auke_coho_data", dir(datadir))]
 fishdata <- read_csv(file.path(datadir, datafile))
-# fishdata <- fishdata[fishdata$year <= 2019,]  # truncate future years
-## read covariate data
-# pdofile <- dir(datadir)[grep("pdo", dir(datadir))]
-# pdodat <- read_csv(file.path(datadir, pdofile))
-# covfile <- dir(datadir)[grep("covariates", dir(datadir))]
-# cov_raw <- read_csv(file.path(datadir, covfile))
-# ## Subset PDO to Nov-Feb and index to outmigration year
-# pdo <- pdodat[pdodat$month %in% c(11,12,1,2),]
-# pdo$winter_year <- ifelse(pdo$month %in% 11:12, pdo$year, pdo$year - 1)
-# pdo <- aggregate(pdo ~ winter_year, data = pdo, mean)
-# 
-# ## Add PDO to covariate data
-# cov_raw$winter_pdo <- pdo$pdo[match(cov_raw$year, pdo$winter_year)]
-# covdata <- data.frame(brood_year = fishdata$year[fishdata$obs_type == "past"])
-# 
-# covdata$parr0_year <- covdata$brood_year + 1
-# covdata$parr1_year <- covdata$brood_year + 2
-# covdata$smolt1_year <- covdata$brood_year + 2
-# covdata$smolt2_year <- covdata$brood_year + 3
-# 
-# covdata$parr0_stream_temp <- cov_raw$mean_stream_temp[match(covdata$parr0_year, cov_raw$year)]
-# covdata$parr1_stream_temp <- cov_raw$mean_stream_temp[match(covdata$parr1_year, cov_raw$year)]
-# covdata$mean_stream_temp <- rowMeans(covdata[,c("parr0_stream_temp","parr1_stream_temp")])
-# 
-# covdata$smolt1_hpc_release <- cov_raw$hpc_release[match(covdata$smolt1_year, cov_raw$year)]
-# covdata$smolt2_hpc_release <- cov_raw$hpc_release[match(covdata$smolt2_year, cov_raw$year)]
-# covdata$mean_hpc_release <- rowMeans(covdata[,c("smolt1_hpc_release","smolt2_hpc_release")])/1e6
-# 
-# covdata$smolt1_pdo <- pdo$pdo[match(covdata$smolt1_year, cov_raw$year)]
-# covdata$smolt2_pdo <- pdo$pdo[match(covdata$smolt2_year, cov_raw$year)]
-# covdata$mean_pdo <- rowMeans(covdata[,c("smolt1_pdo","smolt2_pdo")])
-# 
-# env_data <- covdata[,c("brood_year","mean_stream_temp","mean_hpc_release","mean_pdo")]
-# env_data[,-1] <- scale(env_data[,-1])
-# env_data <- na.omit(env_data)
-# 
-# ## Truncate fish data to non-missing covariate data
-# fishdata_env <- fishdata[fishdata$year %in% na.omit(env_data)$brood_year,]
+fishdata <- fishdata[fishdata$year <= 2019,]  # truncate future years
+# read covariate data
+pdofile <- dir(datadir)[grep("pdo", dir(datadir))]
+pdodat <- read_csv(file.path(datadir, pdofile))
+covfile <- dir(datadir)[grep("covariates", dir(datadir))]
+cov_raw <- read_csv(file.path(datadir, covfile))
+## Subset PDO to Nov-Feb and index to outmigration year
+pdo <- pdodat[pdodat$month %in% c(11,12,1,2),]
+pdo$winter_year <- ifelse(pdo$month %in% 11:12, pdo$year, pdo$year - 1)
+pdo <- aggregate(pdo ~ winter_year, data = pdo, mean)
 
-## ----fit_spawner_smolt_age_model, eval=TRUE------------------------------------------------
-fit_BH <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "BH", 
+## Add PDO to covariate data
+env_data <- cov_raw
+env_data$winter_pdo <- pdo$pdo[match(env_data$year, pdo$winter_year)]
+# HPC release in 100s of millions of fish
+env_data$hpc_release <- (env_data$hpc_release - mean(env_data$hpc_release))/1e8
+env_data$mean_stream_temp <- scale(env_data$mean_stream_temp, scale = FALSE)
+env_data$winter_pdo <- scale(env_data$winter_pdo)
+env_data <- as.matrix(env_data[,-1])
+
+## Truncate fish data to non-missing covariate data
+fishdata_env <- fishdata[fishdata$year %in% na.omit(env_data)$year,]
+
+## ----fit_density_independent, eval=TRUE------------------------------------------------
+fit_exp <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "exp", 
+                    pars = c(stan_pars("IPM_SMaS_np"), "LL"),
                     chains = 3, cores = 3, iter = 1500, warmup = 500,
-                    control = list(adapt_delta = 0.99))
+                    control = list(adapt_delta = 0.99, max_treedepth = 13))
 
-## ----print_fitted_model---------------------------------------------------
-print(fit_BH, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R"), include = FALSE,
+## ----print_density_independent---------------------------------------------------
+print(fit_exp, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE,
       probs = c(0.025,0.5,0.975))
 
-## ----shinystan------------------------------------------------------------
+## ----shinystan_density_indepndent------------------------------------------------------------
+launch_shinystan(fit_exp)
+
+
+## ----fit_BH, eval=TRUE------------------------------------------------
+fit_BH <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "BH", 
+                    pars = c(stan_pars("IPM_SMaS_np"), "LL"),
+                    chains = 3, cores = 3, iter = 1500, warmup = 500,
+                    control = list(adapt_delta = 0.99, max_treedepth = 13))
+
+## ----print_fit_BH---------------------------------------------------
+print(fit_BH, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE,
+      probs = c(0.025,0.5,0.975))
+
+## ----shinystan_fit_BH--------------------------------------------------------
 launch_shinystan(fit_BH)
+
+
+## ----fit_BH, eval=TRUE------------------------------------------------
+fit_BH_env <- salmonIPM(fishdata_env, 
+                        env_data = list(M = env_data[,"mean_stream_temp", drop = FALSE], 
+                                        MS = env_data[,c("hpc_release","winter_pdo")]), 
+                        stan_model = "IPM_SMaS_np", SR_fun = "BH", 
+                        pars = c(stan_pars("IPM_SMaS_np"), "LL"),
+                        chains = 3, cores = 3, iter = 1500, warmup = 500,
+                        control = list(adapt_delta = 0.99, max_treedepth = 13))
+
+## ----print_fit_BH---------------------------------------------------
+print(fit_BH_env, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE,
+      probs = c(0.025,0.5,0.975))
+
+## ----shinystan_fit_BH--------------------------------------------------------
+launch_shinystan(fit_BH_env)
+
+
+## ----fit_Ricker, eval=TRUE------------------------------------------------
+fit_Ricker <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "Ricker", 
+                    pars = c(stan_pars("IPM_SMaS_np"), "LL"),
+                    chains = 3, cores = 3, iter = 1500, warmup = 500,
+                    control = list(adapt_delta = 0.99, max_treedepth = 13))
+
+## ----print_Ricker---------------------------------------------------
+print(fit_Ricker, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE,
+      probs = c(0.025,0.5,0.975))
+
+## ----shinystan_Ricker------------------------------------------------------------
+launch_shinystan(fit_Ricker)
+
+
+##---MODEL SELECTION-------------------------------------------------------
+##---compare_spawner_recruit_models-----------------------------------
+loo_exp <- loo(extract1(fit_exp,"LL"))
+loo_BH <- loo(extract1(fit_BH,"LL"))
+loo_Ricker <- loo(extract1(fit_Ricker,"LL"))
+# compare all three S-R models
+compare(loo_exp, loo_BH, loo_Ricker)
+# pairwise comparisons
+compare(loo_exp, loo_BH)
+compare(loo_exp, loo_Ricker)
+compare(loo_BH, loo_Ricker)
+
 
 
 ## ----FIGURES--------------------------------------------------------------
