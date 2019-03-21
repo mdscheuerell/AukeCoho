@@ -70,8 +70,8 @@ fit_exp <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "exp",
                     control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## ----print_density_independent---------------------------------------------------
-print(fit_exp, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE,
-      probs = c(0.025,0.5,0.975))
+print(fit_exp,  probs = c(0.025,0.5,0.975),
+      pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE)
 
 ## ----shinystan_density_indepndent------------------------------------------------------------
 launch_shinystan(fit_exp)
@@ -84,8 +84,8 @@ fit_BH <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "BH",
                     control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## ----print_fit_BH---------------------------------------------------
-print(fit_BH, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE,
-      probs = c(0.025,0.5,0.975))
+print(fit_BH, probs = c(0.025,0.5,0.975),
+      pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE)
 
 ## ----shinystan_fit_BH--------------------------------------------------------
 launch_shinystan(fit_BH)
@@ -101,8 +101,8 @@ fit_BH_env <- salmonIPM(fishdata_env,
                         control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## ----print_fit_BH---------------------------------------------------
-print(fit_BH_env, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE,
-      probs = c(0.025,0.5,0.975))
+print(fit_BH_env, probs = c(0.025,0.5,0.975),
+      pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE)
 
 ## ----shinystan_fit_BH--------------------------------------------------------
 launch_shinystan(fit_BH_env)
@@ -115,8 +115,8 @@ fit_Ricker <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "Ricker",
                     control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## ----print_Ricker---------------------------------------------------
-print(fit_Ricker, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE,
-      probs = c(0.025,0.5,0.975))
+print(fit_Ricker, probs = c(0.025,0.5,0.975),
+      pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE)
 
 ## ----shinystan_Ricker------------------------------------------------------------
 launch_shinystan(fit_Ricker)
