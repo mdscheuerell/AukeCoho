@@ -6,7 +6,7 @@ if(Sys.info()["sysname"] == "Windows") options(device = windows)
 ## for inference
 #unleash below to update master branch version of IPM
 detach(package:salmonIPM, unload = TRUE)
-devtools::install_github("ebuhle/salmonIPM@ICchinook-models")
+devtools::install_github("ebuhle/salmonIPM")
 library("salmonIPM")
 ## for dir management
 if(!require("here")) {
