@@ -13,7 +13,7 @@ if(!require("here")) {
   install.packages("here")
   library("here")
 }
-## for data munging
+## for data munging 
 if(!require("readr")) {
   install.packages("readr")
   library("readr")
