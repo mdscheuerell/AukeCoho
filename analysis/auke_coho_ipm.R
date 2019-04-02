@@ -11,7 +11,7 @@ library("salmonIPM")
 ## for dir management
 if(!require("here")) {
   install.packages("here")
-  library("here")
+  library("here") 
 }
 ## for data munging 
 if(!require("readr")) {
