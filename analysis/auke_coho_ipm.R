@@ -3,7 +3,7 @@ options(width = 100)
 if(Sys.info()["sysname"] == "Windows") options(device = windows)
 
 ## ----load_pkgs, message=FALSE, warning=FALSE-----------------------------
-## for inference 
+## for inference
 #unleash below to update master branch version of IPM
 detach(package:salmonIPM, unload = TRUE)
 devtools::install_github("ebuhle/salmonIPM")
