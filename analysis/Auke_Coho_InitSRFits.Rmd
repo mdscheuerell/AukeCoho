@@ -1,0 +1,123 @@
+---
+title: "Auke_Coho_InitSRFits"
+author: "DT"
+date: "7/17/2020"
+output: 
+  github_document:
+  html_document:
+    keep_md : true
+---
+
+```{r set_options, echo=FALSE, cache=TRUE}
+options(width = 120)
+```
+
+***
+
+[__Mark D. Scheuerell__](https://faculty.washington.edu/scheuerl/)  
+_Fish Ecology Division, Northwest Fisheries Science Center, National Marine Fisheries Service, National Oceanic and Atmospheric Administration, Seattle, WA, mark.scheuerell@noaa.gov_
+
+
+__Eric R. Buhle__  
+_Quantitative Science Inc., Northwest Fisheries Science Center, National Marine Fisheries Service, National Oceanic and Atmospheric Administration, Seattle, WA USA, eric.buhle@noaa.gov_
+
+__David Tallmon, Scott Vulstek__
+
+***
+
+This is version `r paste0('0.',format(Sys.time(), '%y.%m.%d'))`.
+
+Note that author list and order subject to change.
+
+***
+
+# Requirements
+All analyses require the [R software](https://cran.r-project.org/) (v3.4+) for data retrieval, data processing, and summarizing model results, and the [Stan software](http://mc-stan.org/) (v2.17.0) for Hamiltonian Monte Carlo (HMC) sampling.
+
+We also need a few packages that are not included with the base installation of R, so we begin by installing them (if necessary) and then loading them.
+
+```{r load_pkgs, message=FALSE, warning=FALSE}
+## for inference
+if(!require("rstan")) {
+  install.packages("rstan")
+  library("rstan")
+}
+if(!require("loo")) {
+  install.packages("loo")
+  library("loo")
+}
+if(!require("salmonIPM")) {
+  devtools::install_github("ebuhle/salmonIPM")
+  library("salmonIPM")
+}
+## for data munging
+if(!require("readr")) {
+  install.packages("readr")
+  library("readr")
+}
+if(!require("dplyr")) {
+  install.packages("dplyr")
+  library("dplyr")
+}
+## for output/plotting
+if(!require("viridis")) {
+  install.packages("viridis")
+  library("viridis")
+}
+## for dir management
+if(!require("here")) {
+  install.packages("here")
+  library("here")
+}
+```
+
+# Load fish data
+
+We begin by reading in the fish data file 
+```{r}
+setwd(here("analysis"))
+datadir <- here("data")
+datafile <- dir(datadir)[grep("auke_coho_data_1980-2019", dir(datadir))]
+fishdata <- read_csv(file.path(datadir, datafile))
+fishdata <- fishdata[fishdata$year <= 2020,]  # truncate future years
+```
+
+Read in covariates that will be used in future analyses.
+Need to discuss indexing covariates before using.
+```{r}
+covfile <- dir(datadir)[grep("covariates_1980-2019", dir(datadir))]
+cov_raw <- read_csv(file.path(datadir, covfile))
+env_data <- cov_raw
+# HPC release in 100s of millions of fish
+env_data$hpc_release <- (env_data$hpc_release - mean(env_data$hpc_release))/1e8
+# winter PDO
+env_data$pdo_nov_jan <- scale(env_data$pdo_nov_jan)
+# spring gauge
+env_data$gauge_spring <- scale(env_data$gauge_spring)
+```
+
+Fit the first SR function: Ricker. Print the output.
+```{r}
+fit_Ricker <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "Ricker",
+pars = c(stan_pars("IPM_SMaS_np"), "LL"),chains = 3, cores = 3, iter = 1000, warmup = 500,
+control = list(adapt_delta = 0.99, max_treedepth = 13))
+print(fit_Ricker, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE, probs = c(0.025,0.5,0.975))
+```
+
+Fit a Beverton-Holt function.  Print the output.
+```{r}
+fit_BH <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "BH",
+pars = c(stan_pars("IPM_SMaS_np"), "LL"),chains = 3, cores = 3, iter = 1000, warmup = 500,
+control = list(adapt_delta = 0.99, max_treedepth = 13))
+print(fit_BH, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE, probs = c(0.025,0.5,0.975))
+```
+
+Fit an exponential function.  Print the output.
+```{r}
+fit_exp <- salmonIPM(fishdata, stan_model = "IPM_SMaS_np", SR_fun = "exp",
+pars = c(stan_pars("IPM_SMaS_np"), "LL"),chains = 3, cores = 3, iter = 1000, warmup = 500,
+control = list(adapt_delta = 0.99, max_treedepth = 13))
+print(fit_exp, pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","LL"), include = FALSE, probs = c(0.025,0.5,0.975))
+```
+
+
