@@ -206,9 +206,9 @@ polygon(c(Smat[1,], rev(Smat[1,])),
         col = c_srci, border = NA)
 lg <- legend("topright", legend = c("observations", "states (95% CI)", "fit (95% CI)"), 
              pch = c(16,16,NA), col = c(c_obs, c_est, c_sr), lty = c(NA,1,1), lwd = c(NA,1,3),
-             box.lwd = 0.5)
-legend("topright", legend = c("","",""), col = c(NA, NA, c_srci),
-       lty = c(NA,NA,1), lwd = c(NA,NA,10), bty = "n", inset = c(0.19,0))
+             bty = "n")
+legend("topright", legend = c("","",""), pch = c(NA,3,NA), col = c(NA, c_est, c_srci),
+       lty = c(NA,NA,1), lwd = c(NA,NA,20), bty = "n", inset = c(0.19,0))
 
 rm(list = c("mod_name","S","alpha","Rmax","M0_obs","M0","S_obs","Smat","n_Mage_obs",
             "q_M_obs","q_M","M0hat","c_obs","c_sr","c_est","c_srci","c_arr",
