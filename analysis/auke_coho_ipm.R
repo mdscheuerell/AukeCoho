@@ -144,7 +144,7 @@ png(filename=here("analysis","results",paste0("SR_",mod_name,".png")),
 ## @knitr plot_SR
 # observations
 S_obs <- fish_data$S_obs
-M_obs <- fish_data$M_obs
+M_obs <- fish_data$M_obs/1000
 n_Mage_obs <- stan_data(fish_data, stan_model = "IPM_SMaS_np")$n_Mage_obs
 q_M_obs <- sweep(n_Mage_obs, 1, rowSums(n_Mage_obs), "/")
 N <- nrow(fish_data)
@@ -153,14 +153,14 @@ for(i in 1:N)
   M0_obs[i] <- ifelse((i + 2) <= N, M_obs[i+2]*q_M_obs[i+2,1], NA) + 
                ifelse((i + 3) <= N, M_obs[i+3]*q_M_obs[i+3,2], NA)
 # states
-S_IPM <- do.call(extract1, list(as.name(mod_name), "S"))
-M_IPM <- do.call(extract1, list(as.name(mod_name), "M"))
-M0_IPM <- matrix(NA, nrow(M_IPM), ncol(M_IPM))
-q_M_IPM <- do.call(extract1, list(as.name(mod_name), "q_M"))
+S <- do.call(extract1, list(as.name(mod_name), "S"))
+M <- do.call(extract1, list(as.name(mod_name), "M"))/1000
+M0 <- matrix(NA, nrow(M), ncol(M))/1000
+q_M <- do.call(extract1, list(as.name(mod_name), "q_M"))
 for(i in 1:N) {
-  if((i + 2) <= N) m2 <- M_IPM[,i+2]*q_M_IPM[,i+2,1] else m2 <- NA
-  if((i + 3) <= N) m3 <- M_IPM[,i+3]*q_M_IPM[,i+3,2] else m3 <- NA
-  M0_IPM[,i] <- m2 + m3
+  if((i + 2) <= N) m2 <- M[,i+2]*q_M[,i+2,1] else m2 <- NA
+  if((i + 3) <= N) m3 <- M[,i+3]*q_M[,i+3,2] else m3 <- NA
+  M0[,i] <- m2 + m3
 }
 # predicted states
 SR <- function(alpha, Rmax, S, A, SR_fun) 
@@ -173,9 +173,9 @@ SR <- function(alpha, Rmax, S, A, SR_fun)
 SR_fun <- unlist(strsplit(mod_name, "_"))[2]
 alpha <- as.vector(do.call(extract1, list(as.name(mod_name), "alpha")))
 Rmax <- as.vector(do.call(extract1, list(as.name(mod_name), "Rmax")))
-S <- matrix(seq(0, max(S_obs, apply(S_IPM, 2, quantile, 0.975), na.rm = T)*1.02, length = 500),
-            nrow = length(alpha), ncol = 500, byrow = TRUE)
-M0hat_IPM <- SR(alpha = alpha, Rmax = Rmax, S = S, A = 1, SR_fun)
+Smat <- matrix(seq(0, max(S_obs, apply(S, 2, quantile, 0.975), na.rm = T)*1.02, length = 500),
+               nrow = length(alpha), ncol = 500, byrow = TRUE)
+M0hat <- SR(alpha = alpha, Rmax = Rmax, S = Smat, A = 1, SR_fun)/1000
 
 c_obs <- transparent("orangered3", trans.val = 0.3)
 c_sr <- "blue4"
@@ -183,36 +183,35 @@ c_est <- transparent(c_sr, trans.val = 0.5)
 c_srci <- transparent(c_sr, trans.val = 0.8)
 c_arr <- "darkgray"
 
-par(mar = c(5,5.5,2,1))
+par(mar = c(5,4.5,2,1))
 plot(S_obs, M0_obs, pch = 16, col = c_obs, las = 1,
      cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5, xaxs = "i", yaxs = "i",
-     xlab = "Spawners", ylab = "", xlim = c(0, max(S)),
-     ylim = range(0, M0_obs, apply(M0_IPM, 2, quantile, 0.975, na.rm = T), na.rm = T)*1.02)
-mtext("Smolts", side = 2, line = 4, cex = 1.5)
+     xlab = "Spawners", ylab = "Smolts (thousands)", xlim = c(0, max(Smat)),
+     ylim = range(0, M0_obs, apply(M0, 2, quantile, 0.975, na.rm = TRUE), na.rm = T)*1.02)
 
-points(apply(S_IPM, 2, median), apply(M0_IPM, 2, median), pch = 16, col = c_est)
-arrows(S_obs, M0_obs, apply(S_IPM, 2, median), apply(M0_IPM, 2, median, na.rm = T), 
+points(apply(S, 2, median), apply(M0, 2, median), pch = 16, col = c_est)
+arrows(S_obs, M0_obs, apply(S, 2, median), apply(M0, 2, median, na.rm = TRUE), 
        col = c_arr, length = 0.1)
-segments(x0 = apply(S_IPM, 2, quantile, 0.025, na.rm = T), 
-         y0 = apply(M0_IPM, 2, median, na.rm = T), 
-         x1 = apply(S_IPM, 2, quantile, 0.975), col = c_est)
-segments(x0 = apply(S_IPM, 2, median), 
-         y0 = apply(M0_IPM, 2, quantile, 0.025, na.rm = T), 
-         y1 = apply(M0_IPM, 2, quantile, 0.975, na.rm = T), col = c_est)
+segments(x0 = apply(S, 2, quantile, 0.025, na.rm = TRUE), 
+         y0 = apply(M0, 2, median, na.rm = TRUE), 
+         x1 = apply(S, 2, quantile, 0.975), col = c_est)
+segments(x0 = apply(S, 2, median), 
+         y0 = apply(M0, 2, quantile, 0.025, na.rm = TRUE), 
+         y1 = apply(M0, 2, quantile, 0.975, na.rm = TRUE), col = c_est)
 
-lines(S[1,], apply(M0hat_IPM, 2, median, na.rm = T), lwd = 3, col = c_sr)
-polygon(c(S[1,], rev(S[1,])), 
-        c(apply(M0hat_IPM, 2, quantile, 0.025, na.rm = T), 
-          rev(apply(M0hat_IPM, 2, quantile, 0.975, na.rm = T))), 
+lines(Smat[1,], apply(M0hat, 2, median, na.rm = TRUE), lwd = 3, col = c_sr)
+polygon(c(Smat[1,], rev(Smat[1,])), 
+        c(apply(M0hat, 2, quantile, 0.025, na.rm = TRUE), 
+          rev(apply(M0hat, 2, quantile, 0.975, na.rm = TRUE))), 
         col = c_srci, border = NA)
 lg <- legend("topright", legend = c("observations", "states (95% CI)", "fit (95% CI)"), 
              pch = c(16,16,NA), col = c(c_obs, c_est, c_sr), lty = c(NA,1,1), lwd = c(NA,1,3),
              box.lwd = 0.5)
 legend("topright", legend = c("","",""), col = c(NA, NA, c_srci),
-       lty = c(NA,NA,1), lwd = c(NA,NA,10), bty = "n", inset = c(0.2,0))
+       lty = c(NA,NA,1), lwd = c(NA,NA,10), bty = "n", inset = c(0.19,0))
 
-rm(list = c("mod_name","S","alpha","Rmax","M0_obs","M0_IPM","S_obs","S_IPM","n_Mage_obs",
-            "q_M_obs","q_M_IPM","M0hat_IPM","c_obs","c_sr","c_est","c_srci","c_arr",
+rm(list = c("mod_name","S","alpha","Rmax","M0_obs","M0","S_obs","Smat","n_Mage_obs",
+            "q_M_obs","q_M","M0hat","c_obs","c_sr","c_est","c_srci","c_arr",
             "m2","m3","lg"))
 ## @knitr
 dev.off()
@@ -230,7 +229,7 @@ png(filename=here("analysis","results",paste0("SR_params_",mod_name,".png")),
 
 ## @knitr plot_SR_params
 alpha <- do.call(extract1, list(as.name(mod_name),"alpha"))
-Rmax <- do.call(extract1, list(as.name(mod_name),"Rmax"))
+Rmax <- do.call(extract1, list(as.name(mod_name),"Rmax"))/1000
 
 par(mfrow = c(1,2), mar = c(5.1,2,3,1), oma = c(0,1,0,0))
 
@@ -243,7 +242,7 @@ box(bty = "l")
 mtext("Probability density", side = 2, line = 1, cex = par("cex")*1.5)
 
 # Posterior of Rmax
-hist(Rmax/1e3, 15, prob = TRUE,  border = "white",
+hist(Rmax, 15, prob = TRUE,  border = "white",
      las = 1, cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5, yaxs = "i", yaxt = "n",
      xlab = bquote(italic(R)[max] * " (thousands)"), ylab = "", main = "Maximum smolts")
 curve(dlnorm(x,2,3), add = TRUE)
@@ -269,43 +268,58 @@ png(filename=here("analysis","results",paste0("M_S_",mod_name,".png")),
 year <- fish_data$year
 M_obs <- fish_data$M_obs/1000
 S_obs <- fish_data$S_obs
-M_IPM <- do.call(extract1, list(as.name(mod_name),"M"))/1000
-S_IPM <- do.call(extract1, list(as.name(mod_name),"S"))
+M <- do.call(extract1, list(as.name(mod_name),"M"))/1000
+tau_M <- do.call(extract1, list(as.name(mod_name),"tau_M"))
+M_obs_IPM <- M*rlnorm(length(M), 0, tau_M)
+S <- do.call(extract1, list(as.name(mod_name),"S"))
+tau_S <- do.call(extract1, list(as.name(mod_name),"tau_S"))
+S_obs_IPM <- S*rlnorm(length(S), 0, tau_S)
 
 c_obs <- transparent("orangered3", trans.val = 0.3)
-c_sr <- "blue4"
-c_srci <- transparent(c_sr, trans.val = 0.8)
+c_st <- "blue4"
+c_stci <- transparent(c_st, trans.val = 0.8)
+c_obsci <- transparent(c_st, trans.val = 0.8)
 
 par(mfrow = c(2,1), mar = c(4.5, 5.1, 0.5, 0.5))
 
 # Smolts
-plot(year, apply(M_IPM, 2, median), type = "l", lwd = 3, col = c_sr, 
+plot(year, apply(M, 2, median), type = "l", lwd = 3, col = c_st, 
      las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n", 
-     ylim = range(0, M_obs, apply(M_IPM, 2, quantile, 0.975), na.rm = TRUE),
+     ylim = range(0, M_obs, apply(M_obs_IPM, 2, quantile, 0.975), na.rm = TRUE),
      xlab = "", ylab = "Smolts (thousands)")
 polygon(c(year, rev(year)), 
-        c(apply(M_IPM, 2, quantile, 0.025), rev(apply(M_IPM, 2, quantile, 0.975))),
-        col = c_srci, border = NA)
+        c(apply(M, 2, quantile, 0.025), rev(apply(M, 2, quantile, 0.975))),
+        col = c_stci, border = NA)
+polygon(c(year, rev(year)), 
+        c(apply(M_obs_IPM, 2, quantile, 0.025), rev(apply(M_obs_IPM, 2, quantile, 0.975))),
+        col = c_obsci, border = NA)
 points(year, M_obs, pch = 16, cex = 1.2, col = c_obs)
 axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.2)
 rug(year[year %% 10 != 0], ticksize = -0.01)
 rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
+legend("top", horiz = TRUE, text.width = c(5.5,4,7,7),
+       legend = c("observations","states","process error","observation error"),
+       cex = 0.8, pch = c(16,NA,NA,NA), pt.cex = 1.2, lty = c(NA,1,1,1), lwd = c(NA,3,10,10),
+       col = c(c_obs, c_st, transparent(c_st, trans.val = 0.6), c_obsci), bty = "n")
 
 # Spawners
-plot(year, apply(S_IPM, 2, median), type = "l", lwd = 3, col = c_sr, 
+plot(year, apply(S, 2, median), type = "l", lwd = 3, col = c_st, 
      las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n",
-     ylim = range(0, S_obs, apply(S_IPM, 2, quantile, 0.975), na.rm = TRUE),
+     ylim = range(0, S_obs, apply(S_obs_IPM, 2, quantile, 0.975), na.rm = TRUE),
      xlab = "Year", ylab = "")
 mtext("Spawners", side = 2, line = 3.5, cex = par("cex")*1.5)
 polygon(c(year, rev(year)), 
-        c(apply(S_IPM, 2, quantile, 0.025), rev(apply(S_IPM, 2, quantile, 0.975))),
-        col = c_srci, border = NA)
+        c(apply(S, 2, quantile, 0.025), rev(apply(S, 2, quantile, 0.975))),
+        col = c_stci, border = NA)
+polygon(c(year, rev(year)), 
+        c(apply(S_obs_IPM, 2, quantile, 0.025), rev(apply(S_obs_IPM, 2, quantile, 0.975))),
+        col = c_obsci, border = NA)
 points(year, S_obs, pch = 16, cex = 1.2, col = c_obs)
 axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.2)
 rug(year[year %% 10 != 0], ticksize = -0.01)
 rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
 
-rm(list = c("mod_name","year","S_obs","M_obs","S_IPM","M_IPM","c_obs","c_sr","c_srci"))
+rm(list = c("mod_name","year","S_obs","M_obs","S","M","c_obs","c_st","c_stci","c_obsci"))
 ## @knitr
 dev.off()
 
