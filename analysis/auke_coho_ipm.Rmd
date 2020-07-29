@@ -1,5 +1,6 @@
 ---
 title: "Integrated population model for Auke Creek coho salmon"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
 output:
   html_document:
     fig_caption: yes
@@ -7,14 +8,32 @@ output:
     toc: yes
     toc_depth: 3
     toc_float: yes
-    number_sections: yes
   pdf_document:
+    highlight: haddock
     toc: yes
+    number_sections: true
     toc_depth: '3'
+fontsize: 11pt
+geometry: margin=1in
 ---
 
-```{r set_options, echo=FALSE, cache=TRUE}
-options(width = 120)
+```{r options, include=FALSE}
+knitr::opts_chunk$set(tidy = FALSE, highlight = TRUE, comment = NA, 
+                      dev = "png", dev.args = list(type = "cairo-png"), dpi = 200,
+                      out.width = "70%", fig.align = "center")
+
+library(here)
+if(!require(captioner))
+  devtools::install_github("adletaw/captioner")
+library(captioner)
+fig_nums <- captioner("Figure ", suffix = ": ", auto_space = FALSE, style = "b", style_prefix = TRUE)
+library(kableExtra)
+```
+```{r width, include=FALSE}
+options(width = 130)
+```
+```{r read_chunks, echo = FALSE}
+knitr::read_chunk(here("analysis","auke_coho_ipm.R"))
 ```
 
 ***
@@ -27,11 +46,7 @@ __Eric R. Buhle__
 _Quantitative Science Inc., Northwest Fisheries Science Center, National Marine Fisheries Service, National Oceanic and Atmospheric Administration, Seattle, WA USA, eric.buhle@noaa.gov_
 
 ***
-
-This is version `r paste0('0.',format(Sys.time(), '%y.%m.%d'))`.
-
 Note that author list and order subject to change.
-
 ***
 
 # Requirements
@@ -39,42 +54,10 @@ All analyses require the [R software](https://cran.r-project.org/) (v3.4+) for d
 
 We also need a few packages that are not included with the base installation of R, so we begin by installing them (if necessary) and then loading them.
 
-```{r load_pkgs, message=FALSE, warning=FALSE}
-## for inference
-if(!require("rstan")) {
-  install.packages("rstan")
-  library("rstan")
-}
-if(!require("loo")) {
-  install.packages("loo")
-  library("loo")
-}
-if(!require("salmonIPM")) {
-  devtools::install_github("ebuhle/salmonIPM")
-  library("salmonIPM")
-}
-## for data munging
-if(!require("readr")) {
-  install.packages("readr")
-  library("readr")
-}
-if(!require("dplyr")) {
-  install.packages("dplyr")
-  library("dplyr")
-}
-## for output/plotting
-if(!require("viridis")) {
-  install.packages("viridis")
-  library("viridis")
-}
-## for dir management
-if(!require("here")) {
-  install.packages("here")
-  library("here")
-}
+```{r setup, message=FALSE, warning=FALSE}
 ```
 
-# Load fish data
+# Load Data
 
 We begin by reading in the fish data file assembled in Phase I. Specifically, it is a __.csv__ file with the following columns:
 
@@ -89,51 +72,59 @@ We begin by reading in the fish data file assembled in Phase I. Specifically, it
  * `F_rate`: Total harvest rate (proportion) of natural-origin fish.
  * `B_take_obs`: Number of adults taken for hatchery broodstock.
  
-```{r get_data}
-## directory
-datadir <- here("data")
-## filename
-datafile <- dir(datadir)[grep("ipm", dir(datadir))]
-## read data
-fishdat <- read_csv(file.path(datadir, datafile))
+```{r data}
 ```
 
-These data contain some early years prior to the start of the escapement and age data, so we will trim to the data from 1994 onward.
+# Fit Models
 
-```{r trim_years}
-## trim early years
-fishdat <- filter(fishdat, year >= 1994)
+## Density-Independent
+
+```{r fit_exp, eval = !exists("fit_exp")}
+```
+```{r print_exp}
 ```
 
+## Beverton-Holt
 
-# Temporary fixes
-
-At this point there are still a few missing pieces of necessary data, so here we make the following edits.
-
-## Spawning area
-
-We will set this to 1 so carrying capacity will be in units "fish" rather than "fish per length/area".
-
-```{r set_area}
-# set spawning area
-fishdat$A <- rep(1, dim(fishdat)[1])
+```{r fit_BH, eval = !exists("fit_BH")}
+```
+```{r print_BH}
 ```
 
-## Harvest rates
+## Ricker
 
-We are lacking harvest rates for 2014-2016, so we set them to 0.05 for all populations and years.
-
-```{r set_harvest}
-## remove years with no F estimates
-fishdat <- filter(fishdat, !is.na(F_rate))
+```{r fit_Ricker, eval = !exists("fit_Ricker")}
+```
+```{r print_Ricker}
 ```
 
+## Model Selection
 
-# Fit model
+Model comparison based on LOO. Unhelpful because Pareto *k*s are too high. We will proceed with the Ricker model for now because it gives more biologically reasonable estimates, especially for intrinsic productivity.
 
-```{r fit_model, eval=TRUE}
-fit_ipm <- salmonIPM(fishdat, model = "IPM",
-                     chains = 3, iter = 1000, warmup = 500,
-                     control = list(adapt_delta = 0.95, stepsize = 0.01, max_treedepth = 13))
+```{r loo, warning = FALSE}
+```
+
+# Plots
+
+Estimated spawner-smolt production curve, showing observations and states
+
+```{r plot_SR_Ricker, echo=FALSE, fig.width=7, fig.height=7, out.width="60%"}
+mod_name <- "fit_Ricker"
+<<plot_SR>>
+```
+
+Posterior distributions of spawner-recruit parameters, with priors overlaid
+
+```{r plot_SR_params_Ricker, echo=FALSE, fig.width=10, fig.height=5, out.width="80%"}
+mod_name <- "fit_Ricker"
+<<plot_SR_params>>
+```
+
+Time series of observed smolt and spawner abundance with estimated states
+
+```{r plot_smolt_spawner_timeseries_Ricker, echo=FALSE, fig.width=7, fig.height=7}
+mod_name <- "fit_Ricker"
+<<plot_smolt_spawner_timeseries>>
 ```
 
