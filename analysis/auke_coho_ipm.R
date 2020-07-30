@@ -16,6 +16,8 @@ if(!require(matrixStats)) install.packages("matrixStats")
 library(matrixStats)
 if(!require(yarrr)) install.packages("yarrr")
 library(yarrr)
+if(!require(Hmisc)) install.packages("Hmisc")
+library(Hmisc)
 if(!require(viridis)) install.packages("viridis")
 library(viridis)
 
@@ -208,15 +210,15 @@ polygon(c(Smat[1,], rev(Smat[1,])),
         c(colQuantiles(M0hat, probs = 0.025, na.rm = TRUE), 
           rev(colQuantiles(M0hat, probs = 0.975, na.rm = TRUE))), 
         col = c_srci, border = NA)
-lg <- legend("topright", legend = c("observations", "states (95% CI)", "fit (95% CI)"), 
-             pch = c(16,16,NA), col = c(c_obs, c_est, c_sr), lty = c(NA,1,1), lwd = c(NA,1,3),
-             bty = "n")
+legend("topright", legend = c("observations", "states (95% CI)", "fit (95% CI)"), 
+       pch = c(16,16,NA), col = c(c_obs, c_est, c_sr), lty = c(NA,1,1), lwd = c(NA,1,3),
+       bty = "n")
 legend("topright", legend = c("","",""), pch = c(NA,3,NA), col = c(NA, c_est, c_srci),
        lty = c(NA,NA,1), lwd = c(NA,NA,20), bty = "n", inset = c(0.19,0))
 
 rm(list = c("mod_name","S","alpha","Rmax","M0_obs","M0","S_obs","Smat","n_Mage_obs",
             "q_M_obs","q_M","M0hat","c_obs","c_sr","c_est","c_srci","c_arr",
-            "m2","m3","lg"))
+            "m2","m3"))
 ## @knitr
 dev.off()
 
@@ -328,6 +330,98 @@ rm(list = c("mod_name","year","S_obs","M_obs","S","M","c_obs","c_st","c_stci","c
 dev.off()
 
 
+#------------------------------------------------------------------------
+# Time series of observed and estimated smolt and spawner age structure
+#------------------------------------------------------------------------
+
+mod_name <- "fit_Ricker"
+
+# dev.new(width = 5, height = 7)
+png(filename=here("analysis","results",paste0("q_",mod_name,".png")),
+    width=5, height=7, units="in", res=200, type="cairo-png")
+
+## @knitr plot_smolt_spawner_age_timeseries
+year <- fish_data$year
+dat <- stan_data(fish_data, stan_model = "IPM_SMaS_np")
+n_Mage_obs <- dat$n_Mage_obs
+q_Mage2_obs <- binconf(n_Mage_obs[,"n_Mage2_obs"], rowSums(n_Mage_obs), alpha = 0.05)
+n_MSage_obs <- dat$n_MSage_obs
+q_MSage0_obs <- binconf(n_MSage_obs[,"n_MSage0_obs"], rowSums(n_MSage_obs), alpha = 0.05)
+n_GRage_obs <- dat$n_GRage_obs
+
+q_M <- do.call(extract1, list(as.name(mod_name), "q_M"))
+q_MS <- do.call(extract1, list(as.name(mod_name), "q_MS"))
+q_GR <- do.call(extract1, list(as.name(mod_name), "q_GR"))
+
+cobs <- transparent("orangered3", trans.val = 0.3)
+cst <- "blue4"
+cstci <- transparent(cst, trans.val = 0.8)
+cGR <- viridis(ncol(n_GRage_obs), end = 0.9) 
+cGRt <- transparent(cGR, trans.val = 0.2)
+cGRtt <- transparent(cGR, trans.val = 0.7)
+
+par(mfrow = c(3,1), mar = c(4.5, 5.1, 0.5, 1))
+
+# proportion age-2 smolts
+plot(year, colMedians(q_M[,,1]), type = "l", lwd = 2, col = cst, ylim = c(0,1), 
+     las = 1, cex.axis = 1.2, cex.lab = 1.5, xaxt = "n", 
+     xlab = "", ylab = "Proportion age-2 smolts")
+axis(side = 1, at = year[year %% 5 == 0], cex.axis = 1.2)
+rug(year[year %% 5 != 0], ticksize = -0.02)
+polygon(c(year, rev(year)),
+        c(colQuantiles(q_M[,,1], probs = 0.025), 
+          rev(colQuantiles(q_M[,,1], probs = 0.975))),
+        col = cstci, border = NA)
+points(year, q_Mage2_obs[,"PointEst"], pch = 16, col = cobs, cex = 1.5)
+segments(x0 = year, y0 = q_Mage2_obs[,"Lower"], y1 = q_Mage2_obs[,"Upper"], col = cobs)
+legend("top", horiz = TRUE, legend = c("observations (95% CI)   ","states (95% CI)"),
+       text.col = "white", pch = c(16,NA), pt.cex = 1.5, lwd = c(1,2), col = c(cobs, cst), 
+       bty = "n")
+legend("top", horiz = TRUE, legend = c("observations (95% CI)   ","states (95% CI)"),
+       pch = NA, lty = c(NA,1), lwd = c(NA,10), col = c(NA, cstci), bty = "n")
+
+# proportion jacks
+plot(year, colMedians(q_MS[,,1]), type = "l", lwd = 2, col = cst, 
+     ylim = range(0, q_MSage0_obs[,"Upper"], colQuantiles(q_MS[,,1], probs = 0.975)), 
+     las = 1, cex.axis = 1.2, cex.lab = 1.5, xaxt = "n", 
+     xlab = "", ylab = "Proportion jacks")
+axis(side = 1, at = year[year %% 5 == 0], cex.axis = 1.2)
+rug(year[year %% 5 != 0], ticksize = -0.02)
+polygon(c(year, rev(year)),
+        c(colQuantiles(q_MS[,,1], probs = 0.025), 
+          rev(colQuantiles(q_MS[,,1], probs = 0.975))),
+        col = cstci, border = NA)
+points(year, q_MSage0_obs[,"PointEst"], pch = 16, col = cobs, cex = 1.5)
+segments(x0 = year, y0 = q_MSage0_obs[,"Lower"], y1 = q_MSage0_obs[,"Upper"], col = cobs)
+
+# Gilbert-Rich age proportions
+plot(year, rep(0.5, length(year)), type = "n", ylim = c(0,0.9), 
+     las = 1, cex.axis = 1.2, cex.lab = 1.5, xaxt = "n", 
+     xlab = "Year", ylab = "Proportion at age")
+axis(side = 1, at = year[year %% 5 == 0], cex.axis = 1.2)
+rug(year[year %% 5 != 0], ticksize = -0.02)
+for(a in 1:ncol(n_GRage_obs))
+{
+  q_obs <- binconf(n_GRage_obs[,a], rowSums(n_GRage_obs), alpha = 0.05)
+  lines(year, colMedians(q_GR[,,a]), col = cGRt[a], lwd = 2)
+  polygon(c(year, rev(year)),
+          c(colQuantiles(q_GR[,,a], probs = 0.025),
+            rev(colQuantiles(q_GR[,,a], probs = 0.975))),
+          col = cGRtt[a], border = NA)
+  points(year, q_obs[,"PointEst"], pch = 16, col = cGRt[a], cex = 1.5)
+  segments(x0 = year, y0 = q_obs[,"Lower"], y1 = q_obs[,"Upper"], col = cGRt[a])
+}
+legend("top", horiz = TRUE, title = "Gilbert-Rich age", x.intersp = 0.5,
+       legend = parse(text = paste0(substring(colnames(n_GRage_obs), 8, 8), "[",
+                                    substring(colnames(n_GRage_obs), 10, 10), "]")),
+       col = cGRt, pch = 16, pt.cex = 1.5, lwd = 1, xjust = 0.5, bty = "n")
+
+rm(list = c("mod_name","year","n_Mage_obs","q_Mage2_obs","n_MSage_obs","q_MSage0_obs",
+            "n_GRage_obs","q_M","q_MS","q_GR","q_obs","cobs","cst","cstci","cGR","cGRt","cGRtt"))
+## @knitr
+dev.off()
+
+
 #-----------------------------------------------------------------------------------
 # Time series of smolt recruitment process errors and age proportions by brood year
 #-----------------------------------------------------------------------------------
@@ -350,7 +444,7 @@ c_stci <- transparent(c_st, trans.val = 0.8)
 
 par(mfrow = c(2,1), mar = c(4.5, 5.1, 0.5, 0.5))
 
-# Smolt recruitment process errors
+# smolt recruitment process errors
 plot(year, colMedians(epsilon_M), type = "n", 
      las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n", 
      ylim = range(colQuantiles(epsilon_M, probs = c(0.025,0.975))),
@@ -365,7 +459,7 @@ axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.2)
 rug(year[year %% 10 != 0], ticksize = -0.01)
 rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
 
-# Smolt age composition
+# smolt age composition
 plot(year, rep(0.5, length(year)), type = "n", 
      las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n", ylim = range(0,1), 
      xlab = "Brood year", ylab = "Proportion age-2 smolts")
@@ -447,4 +541,71 @@ rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
 rm(list = c("mod_name","year","s_MS","p_MS","c2","c2t","c3","c3t"))
 ## @knitr
 dev.off()
+
+
+#--------------------------------------------------------
+# Fitted vs. observed catch (modeled as broodstock take)
+#--------------------------------------------------------
+
+mod_name <- "fit_Ricker"
+
+S <- do.call(extract1, list(as.name(mod_name), "S"))
+q_MS <- do.call(extract1, list(as.name(mod_name), "q_MS"))
+B_rate <- do.call(extract1, list(as.name(mod_name), "B_rate_all"))
+B_take <- B_rate*S*q_MS[,,2]/(1 - B_rate) 
+
+dev.new()
+par(mar = c(5,5,1,1))
+plot(colMedians(B_take), fish_data$B_take_obs, pch = 1, cex = 1.5, las = 1,
+     xlim = range(colQuantiles(B_take, probs = c(0.025, 0.975))),
+     cex.axis = 1.2, cex.lab = 1.5, xlab = "Observed catch", ylab = "Estimated catch")
+segments(x0 = colQuantiles(B_take, probs = 0.025), x1 = colQuantiles(B_take, probs = 0.975),
+         y0 = fish_data$B_take_obs)
+abline(0,1)
+
+rm(list = c('mod_name','S','q_MS','B_rate','B_take'))
+
+
+#---------------------------------------------------------------------
+# Smolt recruitment process errors vs. jack proportion of spawners
+#---------------------------------------------------------------------
+
+mod_name <- "fit_Ricker"
+
+epsilon_M <- do.call(extract1, list(as.name(mod_name),"epsilon_M"))
+q_MS <- do.call(extract1, list(as.name(mod_name),"q_MS"))
+dat <- stan_data(fish_data, stan_model = "IPM_SMaS_np")
+n_MSage_obs <- dat$n_MSage_obs
+q_MSage0_obs <- binconf(n_MSage_obs[,"n_MSage0_obs"], rowSums(n_MSage_obs), alpha = 0.05)
+
+dev.new(width = 10, height = 5)
+par(mfrow = c(1,2), mar = c(5,5,1,1))
+
+# use estimated jack fraction (states)
+plot(colMedians(q_MS[,,1]), colMedians(epsilon_M), pch = 16, cex = 1.5, 
+     las = 1, cex.axis = 1.2, cex.lab = 1.5, 
+     xlim = range(colQuantiles(q_MS[,,1], probs = c(0.025,0.975))),
+     ylim = range(colQuantiles(epsilon_M, probs = c(0.025,0.975))),
+     xlab = "Estimated proportion jacks", ylab = "Smolt recruitment anomaly")
+segments(x0 = colQuantiles(q_MS[,,1], probs = 0.025), 
+         x1 = colQuantiles(q_MS[,,1], probs = 0.975),
+         y0 = colMedians(epsilon_M))
+segments(x0 = colMedians(q_MS[,,1]), 
+         y0 = colQuantiles(epsilon_M, probs = 0.025), 
+         y1 = colQuantiles(epsilon_M, probs = 0.975))
+
+# use observed jack fraction
+plot(q_MSage0_obs[,"PointEst"], colMedians(epsilon_M), pch = 16, cex = 1.5, 
+     las = 1, cex.axis = 1.2, cex.lab = 1.5, 
+     xlim = range(q_MSage0_obs[,"Lower"], q_MSage0_obs[,"Upper"]),
+     ylim = range(colQuantiles(epsilon_M, probs = c(0.025,0.975))),
+     xlab = "Observed proportion jacks", ylab = "Smolt recruitment anomaly")
+segments(x0 = q_MSage0_obs[,"Lower"], x1 = q_MSage0_obs[,"Upper"], 
+         y0 = colMedians(epsilon_M))
+segments(x0 = q_MSage0_obs[,"PointEst"], 
+         y0 = colQuantiles(epsilon_M, probs = 0.025), 
+         y1 = colQuantiles(epsilon_M, probs = 0.975))
+
+rm(list = c('epsilon_M','q_MS','dat','mod_name','n_MSage_obs','q_MSage0_obs'))
+
 
