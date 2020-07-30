@@ -128,3 +128,16 @@ mod_name <- "fit_Ricker"
 <<plot_smolt_spawner_timeseries>>
 ```
 
+Time series of smolt recruitment process error residuals and the proportion of smolts from each cohort that outmigrated at age 2.
+
+```{r plot_smolt_recruitment_timeseries_Ricker, echo=FALSE, fig.width=7, fig.height=7}
+mod_name <- "fit_Ricker"
+<<plot_smolt_recruitment_timeseries>>
+```
+
+Time series of smolt-to-adult survival for 2- and 3-year-old smolts, and the proportion of each smolt age that return as jacks rather than overwintering at sea.
+
+```{r plot_SAR_jack_timeseries_Ricker, echo=FALSE, fig.width=7, fig.height=7}
+mod_name <- "fit_Ricker"
+<<plot_SAR_jack_timeseries>>
+```
