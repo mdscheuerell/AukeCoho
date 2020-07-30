@@ -397,7 +397,7 @@ segments(x0 = year, y0 = q_MSage0_obs[,"Lower"], y1 = q_MSage0_obs[,"Upper"], co
 # Gilbert-Rich age proportions
 plot(year, rep(0.5, length(year)), type = "n", ylim = c(0,0.9), 
      las = 1, cex.axis = 1.2, cex.lab = 1.5, xaxt = "n", 
-     xlab = "", ylab = "Proportion at age")
+     xlab = "Year", ylab = "Proportion at age")
 axis(side = 1, at = year[year %% 5 == 0], cex.axis = 1.2)
 rug(year[year %% 5 != 0], ticksize = -0.02)
 for(a in 1:ncol(n_GRage_obs))
