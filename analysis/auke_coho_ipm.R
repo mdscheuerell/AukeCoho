@@ -12,10 +12,12 @@ if(!require(salmonIPM)) devtools::install_github("ebuhle/salmonIPM")
 library(salmonIPM)
 if(!require(here)) install.packages("here")
 library(here) 
-if(!require(viridis)) install.packages("viridis")
-library(viridis)
+if(!require(matrixStats)) install.packages("matrixStats")
+library(matrixStats)
 if(!require(yarrr)) install.packages("yarrr")
 library(yarrr)
+if(!require(viridis)) install.packages("viridis")
+library(viridis)
 
 if(file.exists(here("analysis","results","auke_coho_ipm.RData")))
   load(here("analysis","results","auke_coho_ipm.RData"))
@@ -61,12 +63,13 @@ launch_shinystan(fit_exp)
 # Beverton-Holt
 ## @knitr fit_BH
 fit_BH <- salmonIPM(fish_data, stan_model = "IPM_SMaS_np", SR_fun = "BH", 
-                    log_lik = TRUE, chains = 3, cores = 3, iter = 1500, warmup = 500,
+                    pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
+                    chains = 3, cores = 3, iter = 1500, warmup = 500,
                     control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_BH
 print(fit_BH, probs = c(0.025,0.5,0.975),
-      pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate_all","LL"), 
+      pars = c("epsilon_M","p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate_all","LL"), 
       include = FALSE)
 ## @knitr
 
@@ -75,12 +78,13 @@ launch_shinystan(fit_BH)
 # Ricker
 ## @knitr fit_Ricker
 fit_Ricker <- salmonIPM(fish_data, stan_model = "IPM_SMaS_np", SR_fun = "Ricker", 
-                        log_lik = TRUE, chains = 3, cores = 3, iter = 1500, warmup = 500,
+                        pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
+                        chains = 3, cores = 3, iter = 1500, warmup = 500,
                         control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_Ricker
 print(fit_Ricker, probs = c(0.025,0.5,0.975),
-      pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate_all","LL"), 
+      pars = c("epsilon_M","p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate_all","LL"), 
       include = FALSE)
 ## @knitr
 
@@ -144,7 +148,7 @@ png(filename=here("analysis","results",paste0("SR_",mod_name,".png")),
 ## @knitr plot_SR
 # observations
 S_obs <- fish_data$S_obs
-M_obs <- fish_data$M_obs
+M_obs <- fish_data$M_obs/1000
 n_Mage_obs <- stan_data(fish_data, stan_model = "IPM_SMaS_np")$n_Mage_obs
 q_M_obs <- sweep(n_Mage_obs, 1, rowSums(n_Mage_obs), "/")
 N <- nrow(fish_data)
@@ -153,14 +157,14 @@ for(i in 1:N)
   M0_obs[i] <- ifelse((i + 2) <= N, M_obs[i+2]*q_M_obs[i+2,1], NA) + 
                ifelse((i + 3) <= N, M_obs[i+3]*q_M_obs[i+3,2], NA)
 # states
-S_IPM <- do.call(extract1, list(as.name(mod_name), "S"))
-M_IPM <- do.call(extract1, list(as.name(mod_name), "M"))
-M0_IPM <- matrix(NA, nrow(M_IPM), ncol(M_IPM))
-q_M_IPM <- do.call(extract1, list(as.name(mod_name), "q_M"))
+S <- do.call(extract1, list(as.name(mod_name), "S"))
+M <- do.call(extract1, list(as.name(mod_name), "M"))/1000
+M0 <- matrix(NA, nrow(M), ncol(M))
+q_M <- do.call(extract1, list(as.name(mod_name), "q_M"))
 for(i in 1:N) {
-  if((i + 2) <= N) m2 <- M_IPM[,i+2]*q_M_IPM[,i+2,1] else m2 <- NA
-  if((i + 3) <= N) m3 <- M_IPM[,i+3]*q_M_IPM[,i+3,2] else m3 <- NA
-  M0_IPM[,i] <- m2 + m3
+  if((i + 2) <= N) m2 <- M[,i+2]*q_M[,i+2,1] else m2 <- NA
+  if((i + 3) <= N) m3 <- M[,i+3]*q_M[,i+3,2] else m3 <- NA
+  M0[,i] <- m2 + m3
 }
 # predicted states
 SR <- function(alpha, Rmax, S, A, SR_fun) 
@@ -173,9 +177,9 @@ SR <- function(alpha, Rmax, S, A, SR_fun)
 SR_fun <- unlist(strsplit(mod_name, "_"))[2]
 alpha <- as.vector(do.call(extract1, list(as.name(mod_name), "alpha")))
 Rmax <- as.vector(do.call(extract1, list(as.name(mod_name), "Rmax")))
-S <- matrix(seq(0, max(S_obs, apply(S_IPM, 2, quantile, 0.975), na.rm = T)*1.02, length = 500),
-            nrow = length(alpha), ncol = 500, byrow = TRUE)
-M0hat_IPM <- SR(alpha = alpha, Rmax = Rmax, S = S, A = 1, SR_fun)
+Smat <- matrix(seq(0, max(S_obs, apply(S, 2, quantile, 0.975), na.rm = T)*1.02, length = 500),
+               nrow = length(alpha), ncol = 500, byrow = TRUE)
+M0hat <- SR(alpha = alpha, Rmax = Rmax, S = Smat, A = 1, SR_fun)/1000
 
 c_obs <- transparent("orangered3", trans.val = 0.3)
 c_sr <- "blue4"
@@ -183,36 +187,35 @@ c_est <- transparent(c_sr, trans.val = 0.5)
 c_srci <- transparent(c_sr, trans.val = 0.8)
 c_arr <- "darkgray"
 
-par(mar = c(5,5.5,2,1))
+par(mar = c(5,4.5,2,1))
 plot(S_obs, M0_obs, pch = 16, col = c_obs, las = 1,
      cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5, xaxs = "i", yaxs = "i",
-     xlab = "Spawners", ylab = "", xlim = c(0, max(S)),
-     ylim = range(0, M0_obs, apply(M0_IPM, 2, quantile, 0.975, na.rm = T), na.rm = T)*1.02)
-mtext("Smolts", side = 2, line = 4, cex = 1.5)
+     xlab = "Spawners", ylab = "Smolts (thousands)", xlim = c(0, max(Smat)),
+     ylim = range(0, M0_obs, colQuantiles(M0, probs = 0.975, na.rm = TRUE), na.rm = TRUE)*1.02)
 
-points(apply(S_IPM, 2, median), apply(M0_IPM, 2, median), pch = 16, col = c_est)
-arrows(S_obs, M0_obs, apply(S_IPM, 2, median), apply(M0_IPM, 2, median, na.rm = T), 
+points(colMedians(S), colMedians(M0), pch = 16, col = c_est)
+arrows(S_obs, M0_obs, colMedians(S), colMedians(M0, na.rm = TRUE), 
        col = c_arr, length = 0.1)
-segments(x0 = apply(S_IPM, 2, quantile, 0.025, na.rm = T), 
-         y0 = apply(M0_IPM, 2, median, na.rm = T), 
-         x1 = apply(S_IPM, 2, quantile, 0.975), col = c_est)
-segments(x0 = apply(S_IPM, 2, median), 
-         y0 = apply(M0_IPM, 2, quantile, 0.025, na.rm = T), 
-         y1 = apply(M0_IPM, 2, quantile, 0.975, na.rm = T), col = c_est)
+segments(x0 = colQuantiles(S, probs = 0.025, na.rm = TRUE), 
+         y0 = colMedians(M0, na.rm = TRUE), 
+         x1 = colQuantiles(S, probs = 0.975), col = c_est)
+segments(x0 = colMedians(S), 
+         y0 = colQuantiles(M0, probs = 0.025, na.rm = TRUE), 
+         y1 = colQuantiles(M0, probs = 0.975, na.rm = TRUE), col = c_est)
 
-lines(S[1,], apply(M0hat_IPM, 2, median, na.rm = T), lwd = 3, col = c_sr)
-polygon(c(S[1,], rev(S[1,])), 
-        c(apply(M0hat_IPM, 2, quantile, 0.025, na.rm = T), 
-          rev(apply(M0hat_IPM, 2, quantile, 0.975, na.rm = T))), 
+lines(Smat[1,], colMedians(M0hat, na.rm = TRUE), lwd = 3, col = c_sr)
+polygon(c(Smat[1,], rev(Smat[1,])), 
+        c(colQuantiles(M0hat, probs = 0.025, na.rm = TRUE), 
+          rev(colQuantiles(M0hat, probs = 0.975, na.rm = TRUE))), 
         col = c_srci, border = NA)
 lg <- legend("topright", legend = c("observations", "states (95% CI)", "fit (95% CI)"), 
              pch = c(16,16,NA), col = c(c_obs, c_est, c_sr), lty = c(NA,1,1), lwd = c(NA,1,3),
-             box.lwd = 0.5)
-legend("topright", legend = c("","",""), col = c(NA, NA, c_srci),
-       lty = c(NA,NA,1), lwd = c(NA,NA,10), bty = "n", inset = c(0.2,0))
+             bty = "n")
+legend("topright", legend = c("","",""), pch = c(NA,3,NA), col = c(NA, c_est, c_srci),
+       lty = c(NA,NA,1), lwd = c(NA,NA,20), bty = "n", inset = c(0.19,0))
 
-rm(list = c("mod_name","S","alpha","Rmax","M0_obs","M0_IPM","S_obs","S_IPM","n_Mage_obs",
-            "q_M_obs","q_M_IPM","M0hat_IPM","c_obs","c_sr","c_est","c_srci","c_arr",
+rm(list = c("mod_name","S","alpha","Rmax","M0_obs","M0","S_obs","Smat","n_Mage_obs",
+            "q_M_obs","q_M","M0hat","c_obs","c_sr","c_est","c_srci","c_arr",
             "m2","m3","lg"))
 ## @knitr
 dev.off()
@@ -230,7 +233,7 @@ png(filename=here("analysis","results",paste0("SR_params_",mod_name,".png")),
 
 ## @knitr plot_SR_params
 alpha <- do.call(extract1, list(as.name(mod_name),"alpha"))
-Rmax <- do.call(extract1, list(as.name(mod_name),"Rmax"))
+Rmax <- do.call(extract1, list(as.name(mod_name),"Rmax"))/1000
 
 par(mfrow = c(1,2), mar = c(5.1,2,3,1), oma = c(0,1,0,0))
 
@@ -243,7 +246,7 @@ box(bty = "l")
 mtext("Probability density", side = 2, line = 1, cex = par("cex")*1.5)
 
 # Posterior of Rmax
-hist(Rmax/1e3, 15, prob = TRUE,  border = "white",
+hist(Rmax, 15, prob = TRUE,  border = "white",
      las = 1, cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5, yaxs = "i", yaxt = "n",
      xlab = bquote(italic(R)[max] * " (thousands)"), ylab = "", main = "Maximum smolts")
 curve(dlnorm(x,2,3), add = TRUE)
@@ -269,81 +272,179 @@ png(filename=here("analysis","results",paste0("M_S_",mod_name,".png")),
 year <- fish_data$year
 M_obs <- fish_data$M_obs/1000
 S_obs <- fish_data$S_obs
-M_IPM <- do.call(extract1, list(as.name(mod_name),"M"))/1000
-S_IPM <- do.call(extract1, list(as.name(mod_name),"S"))
+M <- do.call(extract1, list(as.name(mod_name),"M"))/1000
+tau_M <- do.call(extract1, list(as.name(mod_name),"tau_M"))
+M_obs_IPM <- M*rlnorm(length(M), 0, tau_M)
+S <- do.call(extract1, list(as.name(mod_name),"S"))
+tau_S <- do.call(extract1, list(as.name(mod_name),"tau_S"))
+S_obs_IPM <- S*rlnorm(length(S), 0, tau_S)
 
 c_obs <- transparent("orangered3", trans.val = 0.3)
-c_sr <- "blue4"
-c_srci <- transparent(c_sr, trans.val = 0.8)
+c_st <- "blue4"
+c_stci <- transparent(c_st, trans.val = 0.8)
+c_obsci <- transparent(c_st, trans.val = 0.8)
 
 par(mfrow = c(2,1), mar = c(4.5, 5.1, 0.5, 0.5))
 
 # Smolts
-plot(year, apply(M_IPM, 2, median), type = "l", lwd = 3, col = c_sr, 
+plot(year, colMedians(M), type = "l", lwd = 3, col = c_st, 
      las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n", 
-     ylim = range(0, M_obs, apply(M_IPM, 2, quantile, 0.975), na.rm = TRUE),
+     ylim = range(0, M_obs, colQuantiles(M_obs_IPM, probs = 0.975), na.rm = TRUE),
      xlab = "", ylab = "Smolts (thousands)")
 polygon(c(year, rev(year)), 
-        c(apply(M_IPM, 2, quantile, 0.025), rev(apply(M_IPM, 2, quantile, 0.975))),
-        col = c_srci, border = NA)
-points(year, M_obs, pch = 16, cex = 1.2, col = c_obs)
+        c(colQuantiles(M, probs = 0.025), rev(colQuantiles(M, probs = 0.975))),
+        col = c_stci, border = NA)
+polygon(c(year, rev(year)), 
+        c(colQuantiles(M_obs_IPM, probs = 0.025), rev(colQuantiles(M_obs_IPM, probs = 0.975))),
+        col = c_obsci, border = NA)
+points(year, M_obs, pch = 16, cex = 1.5, col = c_obs)
 axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.2)
 rug(year[year %% 10 != 0], ticksize = -0.01)
 rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
+legend("top", horiz = TRUE, text.width = c(5.5,4,7,7),
+       legend = c("observations","states","process error","observation error"),
+       cex = 0.8, pch = c(16,NA,NA,NA), pt.cex = 1.5, lty = c(NA,1,1,1), lwd = c(NA,3,10,10),
+       col = c(c_obs, c_st, transparent(c_st, trans.val = 0.6), c_obsci), bty = "n")
 
 # Spawners
-plot(year, apply(S_IPM, 2, median), type = "l", lwd = 3, col = c_sr, 
+plot(year, colMedians(S), type = "l", lwd = 3, col = c_st, 
      las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n",
-     ylim = range(0, S_obs, apply(S_IPM, 2, quantile, 0.975), na.rm = TRUE),
+     ylim = range(0, S_obs, colQuantiles(S_obs_IPM, probs = 0.975), na.rm = TRUE),
      xlab = "Year", ylab = "")
 mtext("Spawners", side = 2, line = 3.5, cex = par("cex")*1.5)
 polygon(c(year, rev(year)), 
-        c(apply(S_IPM, 2, quantile, 0.025), rev(apply(S_IPM, 2, quantile, 0.975))),
-        col = c_srci, border = NA)
-points(year, S_obs, pch = 16, cex = 1.2, col = c_obs)
+        c(colQuantiles(S, probs = 0.025), rev(colQuantiles(S, probs = 0.975))),
+        col = c_stci, border = NA)
+polygon(c(year, rev(year)), 
+        c(colQuantiles(S_obs_IPM, probs = 0.025), rev(colQuantiles(S_obs_IPM, probs = 0.975))),
+        col = c_obsci, border = NA)
+points(year, S_obs, pch = 16, cex = 1.5, col = c_obs)
 axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.2)
 rug(year[year %% 10 != 0], ticksize = -0.01)
 rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
 
-rm(list = c("mod_name","year","S_obs","M_obs","S_IPM","M_IPM","c_obs","c_sr","c_srci"))
+rm(list = c("mod_name","year","S_obs","M_obs","S","M","c_obs","c_st","c_stci","c_obsci"))
 ## @knitr
 dev.off()
 
 
-# #-------------------------------------------------------------------------
-# # Time series of observed and estimated proportion jacks
-# #-------------------------------------------------------------------------
-# 
-# mod_name <- "fit_Ricker"
-# 
-# dev.new(width = 7, height = 5)
-# # png(filename=here("analysis","results",paste0("p_jack",mod_name,".png")),
-# #     width=7, height=5, units="in", res=200, type="cairo-png")
-# 
-# ## @knitr plot_p_jack_timeseries
-# year <- fish_data$year
-# p_jack_obs <- run_recon(fish_data)$p_age2_obs
-# p_jack_IPM <- do.call(extract1, list(as.name(mod_name),"q_MS"))[,,1]
-# 
-# c_obs <- transparent("orangered3", trans.val = 0.3)
-# c_sr <- "blue4"
-# c_srci <- transparent(c_sr, trans.val = 0.8)
-# 
-# par(mar = c(4.5, 4.5, 0.5, 0.5))
-# plot(year, apply(p_jack_IPM, 2, median), type = "l", lwd = 3, col = c_sr, 
-#      las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n",
-#      ylim = range(p_jack_obs, apply(p_jack_IPM, 2, quantile, 0.975)),
-#      xlab = "Year", ylab = "Proportion jacks")
-# polygon(c(year, rev(year)), 
-#         c(apply(p_jack_IPM, 2, quantile, 0.025), rev(apply(p_jack_IPM, 2, quantile, 0.975))),
-#         col = c_srci, border = NA)
-# points(year[fish_data$obs_type=="past"], p_jack_obs[fish_data$obs_type=="past"], 
-#        pch = 16, cex = 1.2, col = c_obs)
-# axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.2)
-# rug(year[year %% 10 != 0], ticksize = -0.01)
-# rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.02)
-# 
-# rm(list = c("mod_name","year","p_jack_obs","p_jack_IPM","c_obs","c_sr","c_srci"))
-# ## @knitr
-# # dev.off()
+#-----------------------------------------------------------------------------------
+# Time series of smolt recruitment process errors and age proportions by brood year
+#-----------------------------------------------------------------------------------
+
+mod_name <- "fit_Ricker"
+
+# dev.new(width = 7, height = 7)
+png(filename=here("analysis","results",paste0("p_M_",mod_name,".png")),
+    width=7, height=7, units="in", res=200, type="cairo-png")
+
+## @knitr plot_smolt_recruitment_timeseries
+year <- fish_data$year
+# X_M <- env_data
+# beta_M <- do.call(extract1, list(as.name(mod_name),"beta_M"))
+epsilon_M <- do.call(extract1, list(as.name(mod_name),"epsilon_M"))
+p_M <- do.call(extract1, list(as.name(mod_name),"p_M"))
+
+c_st <- "blue4"
+c_stci <- transparent(c_st, trans.val = 0.8)
+
+par(mfrow = c(2,1), mar = c(4.5, 5.1, 0.5, 0.5))
+
+# Smolt recruitment process errors
+plot(year, colMedians(epsilon_M), type = "n", 
+     las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n", 
+     ylim = range(colQuantiles(epsilon_M, probs = c(0.025,0.975))),
+     xlab = "", ylab = "Recruitment anomaly")
+abline(h = 0, lty = 2, lwd = 0.5)
+lines(year, colMedians(epsilon_M), lwd = 3, col = c_st)
+polygon(c(year, rev(year)), 
+        c(colQuantiles(epsilon_M, probs = 0.025), 
+          rev(colQuantiles(epsilon_M, probs = 0.975))),
+        col = c_stci, border = NA)
+axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.2)
+rug(year[year %% 10 != 0], ticksize = -0.01)
+rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
+
+# Smolt age composition
+plot(year, rep(0.5, length(year)), type = "n", 
+     las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n", ylim = range(0,1), 
+     xlab = "Brood year", ylab = "Proportion age-2 smolts")
+abline(h = 0.5, lty = 2, lwd = 0.5)
+lines(year, colMedians(p_M[,,1]), lwd = 3, col = c_st)
+polygon(c(year, rev(year)), 
+        c(colQuantiles(p_M[,,1], probs = 0.025), rev(colQuantiles(p_M[,,1], probs = 0.975))),
+        col = c_stci, border = NA)
+axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.2)
+rug(year[year %% 10 != 0], ticksize = -0.01)
+rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
+
+rm(list = c("mod_name","year","epsilon_M","c_st","c_stci","p_M"))
+## @knitr
+dev.off()
+
+
+#--------------------------------------------------------------------------------------
+# Time series of SAR and ocean-age proportions for each smolt age, by outmigration year
+#--------------------------------------------------------------------------------------
+
+mod_name <- "fit_Ricker"
+
+# dev.new(width = 7, height = 7)
+png(filename=here("analysis","results",paste0("SAR-p_MS_",mod_name,".png")),
+    width=7, height=7, units="in", res=200, type="cairo-png")
+
+## @knitr plot_SAR_jack_timeseries
+year <- fish_data$year
+s_MS <- do.call(extract1, list(as.name(mod_name),"s_MS"))
+p_MS <- do.call(extract1, list(as.name(mod_name),"p_MS"))
+
+
+c2 <- viridis(5)[2]
+c2t <- transparent(c2, trans.val = 0.6)
+c3 <- viridis(5)[4]
+c3t <- transparent(c3, trans.val = 0.6)
+
+par(mfrow = c(2,1), mar = c(4.5, 5.1, 0.5, 0.5))
+
+# SAR
+plot(year, colMedians(s_MS[,,1]), type = "l", lwd = 3, col = c2, 
+     las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n", 
+     ylim = range(0, apply(s_MS, 2:3, quantile, 0.975)),
+     xlab = "", ylab = "Smolt-to-adult survival")
+polygon(c(year, rev(year)), 
+        c(colQuantiles(s_MS[,,1], probs = 0.025), 
+          rev(colQuantiles(s_MS[,,1], probs = 0.975))),
+        col = c2t, border = NA)
+lines(year, colMedians(s_MS[,,2]), lwd = 3, col = c3)
+polygon(c(year, rev(year)), 
+        c(colQuantiles(s_MS[,,2], probs = 0.025), 
+          rev(colQuantiles(s_MS[,,2], probs = 0.975))),
+        col = c3t, border = NA)
+axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.2)
+rug(year[year %% 10 != 0], ticksize = -0.01)
+rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
+legend("topright", title = "smolt age", legend = 2:3, 
+       lty = 1, lwd = 3, col = c(c2,c3), bty = "n")
+
+# Jack proportions
+plot(year, colMedians(p_MS[,,1,1]), type = "l", lwd = 3, col = c2, 
+     las = 1, cex.lab = 1.5, cex.axis = 1.2, xaxt = "n", 
+     ylim = range(0, apply(p_MS[,,,1], 2:3, quantile, 0.975)), 
+     xlab = "Outmigration year", ylab = "Proportion jacks")
+polygon(c(year, rev(year)), 
+        c(colQuantiles(p_MS[,,1,1], probs = 0.025), 
+          rev(colQuantiles(p_MS[,,1,1], probs = 0.975))),
+        col = c2t, border = NA)
+lines(year, colMedians(p_MS[,,2,1]), lwd = 3, col = c3)
+polygon(c(year, rev(year)), 
+        c(colQuantiles(p_MS[,,2,1], probs = 0.025), 
+          rev(colQuantiles(p_MS[,,2,1], probs = 0.975))),
+        col = c3t, border = NA)
+axis(side = 1, at = year[year %% 10 == 0], cex.axis = 1.2)
+rug(year[year %% 10 != 0], ticksize = -0.01)
+rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
+
+rm(list = c("mod_name","year","s_MS","p_MS","c2","c2t","c3","c3t"))
+## @knitr
+dev.off()
 
