@@ -623,7 +623,7 @@ q_GRage0_obs <- binconf(n_GRage_obs[,"n_GRage2_2_obs"] + n_GRage_obs[,"n_GRage3_
 
 dev.new()
 plot(q_MSage0_obs[,"PointEst"], q_GRage0_obs[,"PointEst"], pch = 16, cex = 1.5, 
-     las = 1, cex.axis = 1.2, cex.lab = 1.5, 
+     las = 1, cex.axis = 1.2, cex.lab = 1.5, cex.main = 1.5,
      xlim = range(q_MSage0_obs, q_GRage0_obs, na.rm = TRUE), 
      ylim = range(q_MSage0_obs, q_GRage0_obs, na.rm = TRUE),
      xlab = "Visual", ylab = "Scales", main = "Jack proportion")
