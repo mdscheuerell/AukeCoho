@@ -622,8 +622,10 @@ q_GRage0_obs <- binconf(n_GRage_obs[,"n_GRage2_2_obs"] + n_GRage_obs[,"n_GRage3_
                         rowSums(n_GRage_obs), alpha = 0.05)
 
 dev.new()
-plot(q_MSage0_obs[,"PointEst"], q_GRage0_obs[,"PointEst"], pch = 16, cex = 1.5, las = 1,
-     xlim = range(q_MSage0_obs), ylim = range(q_GRage0_obs, na.rm = TRUE),
+plot(q_MSage0_obs[,"PointEst"], q_GRage0_obs[,"PointEst"], pch = 16, cex = 1.5, 
+     las = 1, cex.axis = 1.2, cex.lab = 1.5, 
+     xlim = range(q_MSage0_obs, q_GRage0_obs, na.rm = TRUE), 
+     ylim = range(q_MSage0_obs, q_GRage0_obs, na.rm = TRUE),
      xlab = "Visual", ylab = "Scales", main = "Jack proportion")
 segments(x0 = q_MSage0_obs[,"Lower"], x1 = q_MSage0_obs[,"Upper"], 
          y0 = q_GRage0_obs[,"PointEst"])
