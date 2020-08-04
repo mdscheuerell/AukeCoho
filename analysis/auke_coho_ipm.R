@@ -143,9 +143,9 @@ save(list = ls()[sapply(ls(), function(x) do.call(class, list(as.name(x)))) == "
 
 mod_name <- "fit_Ricker"
 
-dev.new(width = 7, height = 7)
-# png(filename=here("analysis","results",paste0("SR_",mod_name,".png")),
-#     width=7, height=7, units="in", res=200, type="cairo-png")
+# dev.new(width = 7, height = 7)
+png(filename=here("analysis","results",paste0("SR_",mod_name,".png")),
+    width=7, height=7, units="in", res=200, type="cairo-png")
 
 ## @knitr plot_SR
 # observations
@@ -220,7 +220,7 @@ rm(list = c("mod_name","S","alpha","Rmax","M0_obs","M0","S_obs","Smat","n_Mage_o
             "q_M_obs","q_M","M0hat","c_obs","c_sr","c_est","c_srci","c_arr",
             "m2","m3"))
 ## @knitr
-# dev.off()
+dev.off()
 
 
 #-------------------------------------------------------------------------
@@ -266,9 +266,9 @@ dev.off()
 
 mod_name <- "fit_Ricker"
 
-dev.new(width = 7, height = 7)
-# png(filename=here("analysis","results",paste0("M_S_",mod_name,".png")),
-#     width=7, height=7, units="in", res=200, type="cairo-png")
+# dev.new(width = 7, height = 7)
+png(filename=here("analysis","results",paste0("M_S_",mod_name,".png")),
+    width=7, height=7, units="in", res=200, type="cairo-png")
 
 ## @knitr plot_smolt_spawner_timeseries
 year <- fish_data$year
@@ -327,7 +327,7 @@ rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
 
 rm(list = c("mod_name","year","S_obs","M_obs","S","M","c_obs","c_st","c_stci","c_obsci"))
 ## @knitr
-# dev.off()
+dev.off()
 
 
 #------------------------------------------------------------------------
@@ -336,9 +336,9 @@ rm(list = c("mod_name","year","S_obs","M_obs","S","M","c_obs","c_st","c_stci","c
 
 mod_name <- "fit_Ricker"
 
-dev.new(width = 5, height = 7)
-# png(filename=here("analysis","results",paste0("q_",mod_name,".png")),
-#     width=5, height=7, units="in", res=200, type="cairo-png")
+# dev.new(width = 5, height = 7)
+png(filename=here("analysis","results",paste0("q_",mod_name,".png")),
+    width=5, height=7, units="in", res=200, type="cairo-png")
 
 ## @knitr plot_smolt_spawner_age_timeseries
 year <- fish_data$year
@@ -419,7 +419,7 @@ legend("top", horiz = TRUE, title = "Gilbert-Rich age", x.intersp = 0.5,
 rm(list = c("mod_name","year","n_Mage_obs","q_Mage2_obs","n_MSage_obs","q_MSage0_obs",
             "n_GRage_obs","q_M","q_MS","q_GR","q_obs","cobs","cst","cstci","cGR","cGRt","cGRtt"))
 ## @knitr
-# dev.off()
+dev.off()
 
 
 #-----------------------------------------------------------------------------------
@@ -428,9 +428,9 @@ rm(list = c("mod_name","year","n_Mage_obs","q_Mage2_obs","n_MSage_obs","q_MSage0
 
 mod_name <- "fit_Ricker"
 
-dev.new(width = 7, height = 7)
-# png(filename=here("analysis","results",paste0("p_M_",mod_name,".png")),
-#     width=7, height=7, units="in", res=200, type="cairo-png")
+# dev.new(width = 7, height = 7)
+png(filename=here("analysis","results",paste0("p_M_",mod_name,".png")),
+    width=7, height=7, units="in", res=200, type="cairo-png")
 
 ## @knitr plot_smolt_recruitment_timeseries
 year <- fish_data$year
@@ -474,7 +474,7 @@ rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
 
 rm(list = c("mod_name","year","epsilon_M","c_st","c_stci","p_M"))
 ## @knitr
-# dev.off()
+dev.off()
 
 
 #--------------------------------------------------------------------------------------
@@ -483,9 +483,9 @@ rm(list = c("mod_name","year","epsilon_M","c_st","c_stci","p_M"))
 
 mod_name <- "fit_Ricker"
 
-dev.new(width = 7, height = 7)
-# png(filename=here("analysis","results",paste0("SAR-p_MS_",mod_name,".png")),
-#     width=7, height=7, units="in", res=200, type="cairo-png")
+# dev.new(width = 7, height = 7)
+png(filename=here("analysis","results",paste0("SAR-p_MS_",mod_name,".png")),
+    width=7, height=7, units="in", res=200, type="cairo-png")
 
 ## @knitr plot_SAR_jack_timeseries
 year <- fish_data$year
@@ -540,7 +540,7 @@ rug(year[year %% 10 != 0 & year %% 5 == 0], ticksize = -0.04)
 
 rm(list = c("mod_name","year","s_MS","p_MS","c2","c2t","c3","c3t"))
 ## @knitr
-# dev.off()
+dev.off()
 
 
 #--------------------------------------------------------
