@@ -609,3 +609,29 @@ segments(x0 = q_MSage0_obs[,"PointEst"],
 rm(list = c('epsilon_M','q_MS','dat','mod_name','n_MSage_obs','q_MSage0_obs'))
 
 
+#---------------------------------------------------------------------
+# Compare ocean age observations based on all spawners vs.
+# subsample of spawners with full fresh-salt age
+#---------------------------------------------------------------------
+
+dat <- stan_data(fish_data, stan_model = "IPM_SMaS_np")
+n_MSage_obs <- dat$n_MSage_obs
+q_MSage0_obs <- binconf(n_MSage_obs[,"n_MSage0_obs"], rowSums(n_MSage_obs), alpha = 0.05)
+n_GRage_obs <- dat$n_GRage_obs
+q_GRage0_obs <- binconf(n_GRage_obs[,"n_GRage2_2_obs"] + n_GRage_obs[,"n_GRage3_3_obs"], 
+                        rowSums(n_GRage_obs), alpha = 0.05)
+
+dev.new()
+plot(q_MSage0_obs[,"PointEst"], q_GRage0_obs[,"PointEst"], pch = 16, cex = 1.5, 
+     las = 1, cex.axis = 1.2, cex.lab = 1.5, cex.main = 1.5,
+     xlim = range(q_MSage0_obs, q_GRage0_obs, na.rm = TRUE), 
+     ylim = range(q_MSage0_obs, q_GRage0_obs, na.rm = TRUE),
+     xlab = "Visual", ylab = "Scales", main = "Jack proportion")
+segments(x0 = q_MSage0_obs[,"Lower"], x1 = q_MSage0_obs[,"Upper"], 
+         y0 = q_GRage0_obs[,"PointEst"])
+segments(x0 = q_MSage0_obs[,"PointEst"], 
+         y0 = q_GRage0_obs[,"Lower"], 
+         y1 = q_GRage0_obs[,"Upper"])
+abline(0,1)
+
+rm(list = c('dat','n_MSage_obs','q_MSage0_obs','n_GRage_obs','q_GRage0_obs'))
