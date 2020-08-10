@@ -49,7 +49,8 @@ env_data[,-1] <- scale(env_data[,-1])
 
 # Density-independent
 ## @knitr fit_exp
-fit_exp <- salmonIPM(fish_data, stan_model = "IPM_SMaS_np", SR_fun = "exp", 
+fit_exp <- salmonIPM(fish_data = fish_data, 
+                     stan_model = "IPM_SMaS_np", SR_fun = "exp", conditionGRonMS = TRUE,
                      pars = "Rmax", include = FALSE, log_lik = TRUE, 
                      chains = 3, cores = 3, iter = 1500, warmup = 500,
                      control = list(adapt_delta = 0.99, max_treedepth = 13))
@@ -64,7 +65,8 @@ launch_shinystan(fit_exp)
 
 # Beverton-Holt
 ## @knitr fit_BH
-fit_BH <- salmonIPM(fish_data, stan_model = "IPM_SMaS_np", SR_fun = "BH", 
+fit_BH <- salmonIPM(fish_data = fish_data, 
+                    stan_model = "IPM_SMaS_np", SR_fun = "BH", conditionGRonMS = TRUE,
                     pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
                     chains = 3, cores = 3, iter = 1500, warmup = 500,
                     control = list(adapt_delta = 0.99, max_treedepth = 13))
@@ -79,7 +81,8 @@ launch_shinystan(fit_BH)
 
 # Ricker
 ## @knitr fit_Ricker
-fit_Ricker <- salmonIPM(fish_data, stan_model = "IPM_SMaS_np", SR_fun = "Ricker", 
+fit_Ricker <- salmonIPM(fish_data = fish_data, 
+                        stan_model = "IPM_SMaS_np", SR_fun = "Ricker", conditionGRonMS = TRUE,
                         pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
                         chains = 3, cores = 3, iter = 1500, warmup = 500,
                         control = list(adapt_delta = 0.99, max_treedepth = 13))
@@ -395,25 +398,29 @@ points(year, q_MSage0_obs[,"PointEst"], pch = 16, col = cobs, cex = 1.5)
 segments(x0 = year, y0 = q_MSage0_obs[,"Lower"], y1 = q_MSage0_obs[,"Upper"], col = cobs)
 
 # Gilbert-Rich age proportions
-plot(year, rep(0.5, length(year)), type = "n", ylim = c(0,0.9), 
+plot(year, rep(0.5, length(year)), type = "n", ylim = c(0,1), 
      las = 1, cex.axis = 1.2, cex.lab = 1.5, xaxt = "n", 
      xlab = "Year", ylab = "Proportion at age")
 axis(side = 1, at = year[year %% 5 == 0], cex.axis = 1.2)
 rug(year[year %% 5 != 0], ticksize = -0.02)
-for(a in 1:ncol(n_GRage_obs))
-{
-  q_obs <- binconf(n_GRage_obs[,a], rowSums(n_GRage_obs), alpha = 0.05)
-  lines(year, colMedians(q_GR[,,a]), col = cGRt[a], lwd = 2)
-  polygon(c(year, rev(year)),
-          c(colQuantiles(q_GR[,,a], probs = 0.025),
-            rev(colQuantiles(q_GR[,,a], probs = 0.975))),
-          col = cGRtt[a], border = NA)
-  points(year, q_obs[,"PointEst"], pch = 16, col = cGRt[a], cex = 1.5)
-  segments(x0 = year, y0 = q_obs[,"Lower"], y1 = q_obs[,"Upper"], col = cGRt[a])
-}
-legend("top", horiz = TRUE, title = "Gilbert-Rich age", x.intersp = 0.5,
-       legend = parse(text = paste0(substring(colnames(n_GRage_obs), 8, 8), "[",
-                                    substring(colnames(n_GRage_obs), 10, 10), "]")),
+for(oa in 1:ncol(n_MSage_obs))
+  for(sa in 1:ncol(n_Mage_obs))
+  {
+    a <- (sa - 1)*dat$N_MSage + oa
+    q_obs <- binconf(n_GRage_obs[,a], 
+                     rowSums(n_GRage_obs[, seq(oa, ncol(n_GRage_obs), dat$N_MSage)]), 
+                     alpha = 0.05)
+    lines(year, colMedians(q_GR[,,a]), col = cGRt[a], lwd = 2)
+    polygon(c(year, rev(year)),
+            c(colQuantiles(q_GR[,,a], probs = 0.025),
+              rev(colQuantiles(q_GR[,,a], probs = 0.975))),
+            col = cGRtt[a], border = NA)
+    points(year, q_obs[,"PointEst"], pch = 16, col = cGRt[a], cex = 1.5)
+    segments(x0 = year, y0 = q_obs[,"Lower"], y1 = q_obs[,"Upper"], col = cGRt[a])
+  }
+legend("top", horiz = TRUE, inset = -0.15, xpd = NA, x.intersp = 0.5,
+       legend = parse(text = c(paste0(substring(colnames(n_GRage_obs), 8, 8), "[",
+                                    substring(colnames(n_GRage_obs), 10, 10), "]"))),
        col = cGRt, pch = 16, pt.cex = 1.5, lwd = 1, xjust = 0.5, bty = "n")
 
 rm(list = c("mod_name","year","n_Mage_obs","q_Mage2_obs","n_MSage_obs","q_MSage0_obs",
