@@ -40,9 +40,8 @@ fish_data <- read.csv(here("data","auke_coho_data_1980-2019.csv"))
 cov_raw <- read.csv(here("data","covariates_1980-2019.csv"))
 
 # Index spring freshet discharge to previous brood year, fill last value with mean
-cov_adj <- mutate(cov_raw, gauge_spring = lead(gauge_spring), 
-                  gauge_spring = replace(gauge_spring, is.na(gauge_spring), 
-                                         mean(gauge_spring, na.rm = TRUE)))
+cov_adj <- cov_raw %>% mutate(gauge_spring = lead(gauge_spring)) %>% 
+  filter(year %in% fish_data$year)
 
 # Standardize covariates for modeling
 cov_scl <- scale(select(cov_adj, -year))
