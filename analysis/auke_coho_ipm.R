@@ -40,8 +40,9 @@ fish_data <- read.csv(here("data","auke_coho_data_1980-2019.csv"))
 cov_raw <- read.csv(here("data","covariates_1980-2019.csv"))
 
 # Index spring freshet discharge to previous brood year, fill last value with mean
-cov_adj <- cov_raw %>% mutate(gauge_spring = lead(gauge_spring)) %>% 
-  filter(year %in% fish_data$year)
+cov_adj <- cov_raw %>% 
+  mutate(gauge_spring = lead(gauge_spring), hpc_release = hpc_release / 1e6) %>% 
+  filter(year %in% fish_data$year) %>% select(year, gauge_spring, hpc_release, pdo_nov_jan)
 
 # Standardize covariates for modeling
 cov_scl <- scale(select(cov_adj, -year))
@@ -638,29 +639,93 @@ dev.off()
 
 mod_name <- "fit_Ricker1"
 
-env <- select(env_data, c(gauge_spring, hpc_release, pdo_nov_jan))
+env <- select(env_data, c(flow, HPC, PDO))
 beta <- do.call(as.data.frame, list(as.name(mod_name), c("beta_M","beta_MS")))
+mu_MS <- do.call(as.data.frame, list(as.name(mod_name), "mu_MS"))
+X <- apply(env, 2, function(x) seq(min(x), max(x), length.out = 500))
+marg_eff <- lapply(1:ncol(beta), function(j) outer(beta[,j], X[,j], "*"))
+marg_eff[2:3] <- lapply(2:3, function(j) {
+  lapply(1:2, function(a) plogis(marg_eff[[j]] + qlogis(mu_MS[,a])))
+  })
+epsilon_M <- do.call(extract1, list(as.name(mod_name), "epsilon_M"))
+anomaly_M <- beta[,"beta_M[1,1]"] * env$flow + epsilon_M
+SAR <- do.call(extract1, list(as.name(mod_name), "s_MS"))
+X <- sweep(sweep(X, 2, attributes(cov_scl)[["scaled:scale"]], "*"),
+           2, attributes(cov_scl)[["scaled:center"]], "+")
 
-dev.new(width = 10, height = 7)
-# png(filename=here("analysis","results",paste0("beta_M_MS_",mod_name,".png")),
-#     width=10, height=7, units="in", res=200, type="cairo-png")
+c2 <- viridis(5)[2]
+c2t <- transparent(c2, trans.val = 0.6)
+c3 <- viridis(5)[4]
+c3t <- transparent(c3, trans.val = 0.6)
 
-par(mfrow = c(1,2), mar = c(5.1,2,3,1), oma = c(0,1,0,0))
+# dev.new(width = 8, height = 5)
+png(filename=here("analysis","results",paste0("beta_M_MS_",mod_name,".png")),
+    width=8, height=5, units="in", res=200, type="cairo-png")
 
-# Posterior of log(alpha)
-hist(log(alpha), 15, prob = TRUE,  border = "white",
-     las = 1, cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5, yaxs = "i", yaxt = "n",
-     xlab = bquote(log(alpha)), ylab = "", main = "Intrinsic productivity")
-curve(dnorm(x,2,2), add = TRUE)
-box(bty = "l")
-mtext("Probability density", side = 2, line = 1, cex = par("cex")*1.5)
+par(mfcol = c(2,3), mar = c(5,5,1,1))
 
+for(j in 1:ncol(beta))
+{
+  # Posterior of beta
+  dd <- density(beta[,j])
+  xname <- names(env)[j]
+  sgn <- median(beta[,j]) > 0
+  plot(dd$x, dd$y, type = "l", lwd = 2, las = 1, cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5, 
+       yaxt = "n", xlab = bquote(beta[.(xname)]), ylab = "", main = "", bty = "n")
+  # curve(dnorm(x,0,5), add = TRUE)
+  box(bty = "l")
+  mtext("Probability density", side = 2, line = 1, cex = par("cex")*1.5)
+  abline(v = 0, lwd = 0.5)
+  legend(ifelse(sgn, "topright", "topleft"), bty = "n", inset = c(-0.04,0), xpd = NA,
+         legend = bquote(italic(P)(beta ~ .(ifelse(sgn, ">", "<")) ~ 0) == 
+                           .(round(ifelse(sgn, mean(beta[,j] > 0), mean(beta[,j] < 0)), 2))))
+  
+  # Marginal effect plot with states overlaid
+  life_stage <- unlist(strsplit(unlist(strsplit(names(beta)[j], "\\["))[1], "_"))[2]  
+  eff <- switch(life_stage, M = marg_eff[[j]], MS = marg_eff[[j]][[1]])
+  state <- switch(life_stage, M = anomaly_M, MS = SAR[,,1])
+  plot(X[,j], colMedians(eff), type = "l", lwd = 3, col = c2,
+       las = 1, cex.lab = 1.5, cex.axis = 1.2, xlab = xname, 
+       ylab = switch(life_stage, 
+                     M = "Recruitment anomaly", 
+                     MS = "Smolt-to-adult survival"),
+       ylim = switch(life_stage, 
+                     M = range(colQuantiles(eff, probs = c(0.025, 0.975)),
+                               colQuantiles(state, probs = c(0.025, 0.975))), 
+                     MS = c(0,1)))
+  polygon(c(X[,j], rev(X[,j])),
+          c(colQuantiles(eff, probs = 0.025), rev(colQuantiles(eff, probs = 0.975))),
+          col = c2t, border = NA)
+  points(cov_adj[,j+1], colMedians(state), pch = 16, cex = 1.2, col = c2)
+  segments(x0 = cov_adj[,j+1], y0 = colQuantiles(state, probs = 0.025), 
+           y1 = colQuantiles(state, probs = 0.975), col = c2)
+  if(life_stage == "MS")
+  {
+    eff <- marg_eff[[j]][[2]]
+    state <- SAR[,,2]
+    lines(X[,j], colMedians(eff), lwd = 3, col = c3)
+    polygon(c(X[,j], rev(X[,j])),
+            c(colQuantiles(eff, probs = 0.025), rev(colQuantiles(eff, probs = 0.975))),
+            col = c3t, border = NA)
+    points(cov_adj[,j+1], colMedians(state), pch = 16, cex = 1.2, col = c3)
+    segments(x0 = cov_adj[,j+1], y0 = colQuantiles(state, probs = 0.025), 
+             y1 = colQuantiles(state, probs = 0.975), col = c3)
+  }
+  if(j == 1)
+  {
+    legend("topright", legend = c("state", "marginal effect"), text.col = "white",
+           pch = c(16,NA), pt.cex = 1.2, lwd = c(1,3), col = c2, bty = "n")
+    legend("topright", legend = c("state", "marginal effect"), 
+           lwd = c(NA,10), col = c2t, bty = "n")
+  }
+  if(j == 3)
+    legend("topright", title = "smolt age", legend = 2:3, 
+           lty = 1, lwd = 3, col = c(c2,c3), bty = "n")
+}
 
-
-
+rm(list = c("mod_name","X","beta","mu_MS","anomaly_M","epsilon_M","dd",
+            "marg_eff","SAR","c2","c2t","c3","c3t","life_stage","state","eff","xname","sgn"))
 dev.off()
-
-
 
 
 #--------------------------------------------------------
