@@ -685,14 +685,14 @@ for(j in 1:ncol(beta))
   eff <- switch(life_stage, M = marg_eff[[j]], MS = marg_eff[[j]][[1]])
   state <- switch(life_stage, M = anomaly_M, MS = SAR[,,1])
   plot(X[,j], colMedians(eff), type = "l", lwd = 3, col = c2,
-       las = 1, cex.lab = 1.5, cex.axis = 1.2, xlab = xname, 
+       las = 1, cex.lab = 1.5, cex.axis = 1.2, xlab = capitalize(xname), 
        ylab = switch(life_stage, 
                      M = "Recruitment anomaly", 
                      MS = "Smolt-to-adult survival"),
        ylim = switch(life_stage, 
                      M = range(colQuantiles(eff, probs = c(0.025, 0.975)),
                                colQuantiles(state, probs = c(0.025, 0.975))), 
-                     MS = c(0,1)))
+                     MS = range(0, apply(SAR, 2:3, quantile, 0.975))))
   polygon(c(X[,j], rev(X[,j])),
           c(colQuantiles(eff, probs = 0.025), rev(colQuantiles(eff, probs = 0.975))),
           col = c2t, border = NA)
@@ -718,8 +718,8 @@ for(j in 1:ncol(beta))
     legend("topright", legend = c("state", "marginal effect"), 
            lwd = c(NA,10), col = c2t, bty = "n")
   }
-  if(j == 3)
-    legend("topright", title = "smolt age", legend = 2:3, 
+  if(j == 2)
+    legend("topleft", title = "smolt age", legend = 2:3, 
            lty = 1, lwd = 3, col = c(c2,c3), bty = "n")
 }
 
