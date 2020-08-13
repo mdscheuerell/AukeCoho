@@ -83,13 +83,13 @@ fit_exp1 <- salmonIPM(fish_data = fish_data,
                       env_data = list(M = select(env_data, flow), 
                                       MS = select(env_data, c(HPC, PDO))),
                       stan_model = "IPM_SMaS_np", SR_fun = "exp", conditionGRonMS = TRUE,
-                      pars = setdiff(c(stan_pars("IPM_SMaS_np"), "epsilon_MS"), "Rmax"), 
+                      pars = setdiff(c(stan_pars("IPM_SMaS_np"), "epsilon_M"), "Rmax"), 
                       log_lik = TRUE, chains = 3, cores = 3, iter = 1500, warmup = 500,
                       control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_exp_allcovars
 print(fit_exp1,  probs = c(0.025,0.5,0.975),
-      pars = c("epsilon_MS", "p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate_all","LL"), 
+      pars = c("epsilon_M", "p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate_all","LL"), 
       include = FALSE)
 ## @knitr
 
@@ -123,13 +123,13 @@ fit_BH1 <- salmonIPM(fish_data = fish_data,
                      env_data = list(M = select(env_data, flow), 
                                      MS = select(env_data, c(HPC, PDO))),
                      stan_model = "IPM_SMaS_np", SR_fun = "BH", conditionGRonMS = TRUE,
-                     pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M", "epsilon_MS"), log_lik = TRUE, 
+                     pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
                      chains = 3, cores = 3, iter = 1500, warmup = 500,
                      control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_BH_allcovars
 print(fit_BH1,  probs = c(0.025,0.5,0.975),
-      pars = c("epsilon_M", "epsilon_MS","p_M","q_M","s_MS","p_MS","q_MS","q_GR",
+      pars = c("epsilon_M", "p_M","q_M","s_MS","p_MS","q_MS","q_GR",
                "M","S","R","B_rate_all","LL"), 
       include = FALSE)
 ## @knitr
@@ -164,13 +164,13 @@ fit_Ricker1 <- salmonIPM(fish_data = fish_data,
                          env_data = list(M = select(env_data, flow), 
                                          MS = select(env_data, c(HPC, PDO))),
                          stan_model = "IPM_SMaS_np", SR_fun = "Ricker", conditionGRonMS = TRUE,
-                     pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M", "epsilon_MS"), log_lik = TRUE, 
+                     pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
                      chains = 3, cores = 3, iter = 1500, warmup = 500,
                      control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_Ricker_allcovars
 print(fit_Ricker1, probs = c(0.025,0.5,0.975),
-      pars = c("epsilon_M", "epsilon_MS","p_M","q_M","s_MS","p_MS","q_MS","q_GR",
+      pars = c("epsilon_M","p_M","q_M","s_MS","p_MS","q_MS","q_GR",
                "M","S","R","B_rate_all","LL"), 
       include = FALSE)
 ## @knitr
@@ -639,6 +639,7 @@ dev.off()
 
 mod_name <- "fit_Ricker1"
 
+## @knitr plot_SAR_jack_timeseries
 env <- select(env_data, c(flow, HPC, PDO))
 beta <- do.call(as.data.frame, list(as.name(mod_name), c("beta_M","beta_MS")))
 mu_MS <- do.call(as.data.frame, list(as.name(mod_name), "mu_MS"))
@@ -660,7 +661,7 @@ c3t <- transparent(c3, trans.val = 0.6)
 
 # dev.new(width = 8, height = 5)
 png(filename=here("analysis","results",paste0("beta_M_MS_",mod_name,".png")),
-    width=8, height=5, units="in", res=200, type="cairo-png")
+    width=8, height=5, units="in", res=300, type="cairo-png")
 
 par(mfcol = c(2,3), mar = c(5,5,1,1))
 
@@ -725,7 +726,9 @@ for(j in 1:ncol(beta))
 
 rm(list = c("mod_name","X","beta","mu_MS","anomaly_M","epsilon_M","dd",
             "marg_eff","SAR","c2","c2t","c3","c3t","life_stage","state","eff","xname","sgn"))
+## @knitr
 dev.off()
+
 
 
 #--------------------------------------------------------
