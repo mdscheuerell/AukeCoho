@@ -40,14 +40,15 @@ fish_data <- read.csv(here("data","auke_coho_data_1980-2019.csv"))
 cov_raw <- read.csv(here("data","covariates_1980-2019.csv"))
 
 # Index spring freshet discharge to previous brood year, fill last value with mean
-cov_adj <- mutate(cov_raw, gauge_spring = lead(gauge_spring), 
-                  gauge_spring = replace(gauge_spring, is.na(gauge_spring), 
-                                         mean(gauge_spring, na.rm = TRUE)))
+cov_adj <- cov_raw %>% 
+  rename(flow = gauge_spring, HPC = hpc_release, PDO = pdo_nov_jan) %>% 
+  mutate(flow = lead(flow), HPC = HPC / 1e6) %>% 
+  filter(year %in% fish_data$year) %>% select(year, flow, HPC, PDO)
 
 # Standardize covariates for modeling
 cov_scl <- scale(select(cov_adj, -year))
 env_data <- data.frame(year = cov_adj$year, cov_scl) %>% 
-  rename(HPC = hpc_release, PDO = pdo_nov_jan, flow = gauge_spring)
+  mutate(HPC2 = HPC^2) %>% select(year, flow, HPC, HPC2, PDO)
 
 ## @knitr
 
@@ -65,7 +66,7 @@ env_data <- data.frame(year = cov_adj$year, cov_scl) %>%
 fit_exp0 <- salmonIPM(fish_data = fish_data, 
                       stan_model = "IPM_SMaS_np", SR_fun = "exp", conditionGRonMS = TRUE,
                       pars = "Rmax", include = FALSE, log_lik = TRUE, 
-                      chains = 3, cores = 3, iter = 1500, warmup = 500,
+                      chains = 3, iter = 1500, warmup = 500,
                       control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_exp_nocovars
@@ -76,24 +77,46 @@ print(fit_exp0,  probs = c(0.025,0.5,0.975),
 
 launch_shinystan(fit_exp0)
 
-# epsilon_M ~ gauge_spring, s_MS ~ hpc_release + pdo_nov_jan
+# epsilon_M ~ flow
+# s_MS ~ HPC + PDO
 
 ## @knitr fit_exp_allcovars
 fit_exp1 <- salmonIPM(fish_data = fish_data, 
                       env_data = list(M = select(env_data, flow), 
                                       MS = select(env_data, c(HPC, PDO))),
                       stan_model = "IPM_SMaS_np", SR_fun = "exp", conditionGRonMS = TRUE,
-                      pars = setdiff(c(stan_pars("IPM_SMaS_np"), "epsilon_MS"), "Rmax"), 
-                      log_lik = TRUE, chains = 3, cores = 3, iter = 1500, warmup = 500,
+                      pars = setdiff(c(stan_pars("IPM_SMaS_np"), "epsilon_M"), "Rmax"), 
+                      log_lik = TRUE, chains = 3, iter = 1500, warmup = 500,
                       control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_exp_allcovars
 print(fit_exp1,  probs = c(0.025,0.5,0.975),
-      pars = c("epsilon_MS", "p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate_all","LL"), 
+      pars = c("epsilon_M", "p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate_all","LL"), 
       include = FALSE)
 ## @knitr
 
 launch_shinystan(fit_exp1)
+
+
+# epsilon_M ~ flow
+# s_MS ~ HPC + HPC^2 + PDO
+
+## @knitr fit_exp_allcovars_HPCquad
+fit_exp2 <- salmonIPM(fish_data = fish_data, 
+                      env_data = list(M = select(env_data, flow), 
+                                      MS = select(env_data, c(HPC, HPC2, PDO))),
+                      stan_model = "IPM_SMaS_np", SR_fun = "exp", conditionGRonMS = TRUE,
+                      pars = setdiff(c(stan_pars("IPM_SMaS_np"), "epsilon_M"), "Rmax"), 
+                      log_lik = TRUE, chains = 3, iter = 1500, warmup = 500,
+                      control = list(adapt_delta = 0.99, max_treedepth = 14))
+
+## @knitr print_exp_allcovars_HPCquad
+print(fit_exp2,  probs = c(0.025,0.5,0.975),
+      pars = c("epsilon_M", "p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate_all","LL"), 
+      include = FALSE)
+## @knitr
+
+launch_shinystan(fit_exp2)
 
 #------------------------
 # Beverton-Holt
@@ -105,7 +128,7 @@ launch_shinystan(fit_exp1)
 fit_BH0 <- salmonIPM(fish_data = fish_data, 
                      stan_model = "IPM_SMaS_np", SR_fun = "BH", conditionGRonMS = TRUE,
                      pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
-                     chains = 3, cores = 3, iter = 1500, warmup = 500,
+                     chains = 3, iter = 1500, warmup = 500,
                      control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_BH_nocovars
@@ -116,25 +139,45 @@ print(fit_BH0, probs = c(0.025,0.5,0.975),
 
 launch_shinystan(fit_BH0)
 
-# epsilon_M ~ gauge_spring, s_MS ~ hpc_release + pdo_nov_jan
+# epsilon_M ~ flow 
+# s_MS ~ HPC + PDO
 
 ## @knitr fit_BH_allcovars
 fit_BH1 <- salmonIPM(fish_data = fish_data, 
                      env_data = list(M = select(env_data, flow), 
                                      MS = select(env_data, c(HPC, PDO))),
                      stan_model = "IPM_SMaS_np", SR_fun = "BH", conditionGRonMS = TRUE,
-                     pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M", "epsilon_MS"), log_lik = TRUE, 
-                     chains = 3, cores = 3, iter = 1500, warmup = 500,
+                     pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
+                     chains = 3, iter = 1500, warmup = 500,
                      control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_BH_allcovars
 print(fit_BH1,  probs = c(0.025,0.5,0.975),
-      pars = c("epsilon_M", "epsilon_MS","p_M","q_M","s_MS","p_MS","q_MS","q_GR",
-               "M","S","R","B_rate_all","LL"), 
-      include = FALSE)
+      pars = c("epsilon_M", "p_M","q_M","s_MS","p_MS","q_MS","q_GR",
+               "M","S","R","B_rate_all","LL"), include = FALSE)
 ## @knitr
 
 launch_shinystan(fit_BH1)
+
+# epsilon_M ~ flow 
+# s_MS ~ HPC + HPC^2 + PDO
+
+## @knitr fit_BH_allcovars_HPCquad
+fit_BH2 <- salmonIPM(fish_data = fish_data, 
+                     env_data = list(M = select(env_data, flow), 
+                                     MS = select(env_data, c(HPC, HPC2, PDO))),
+                     stan_model = "IPM_SMaS_np", SR_fun = "BH", conditionGRonMS = TRUE,
+                     pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
+                     chains = 3, iter = 1500, warmup = 500,
+                     control = list(adapt_delta = 0.99, max_treedepth = 14))
+
+## @knitr print_BH_allcovars_HPCquad
+print(fit_BH2,  probs = c(0.025,0.5,0.975),
+      pars = c("epsilon_M", "p_M","q_M","s_MS","p_MS","q_MS","q_GR",
+               "M","S","R","B_rate_all","LL"), include = FALSE)
+## @knitr
+
+launch_shinystan(fit_BH2)
 
 #------------------------
 # Ricker
@@ -146,7 +189,7 @@ launch_shinystan(fit_BH1)
 fit_Ricker0 <- salmonIPM(fish_data = fish_data, 
                          stan_model = "IPM_SMaS_np", SR_fun = "Ricker", conditionGRonMS = TRUE,
                          pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
-                         chains = 3, cores = 3, iter = 1500, warmup = 500,
+                         chains = 3, iter = 1500, warmup = 500,
                          control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_Ricker_nocovars
@@ -157,25 +200,47 @@ print(fit_Ricker0, probs = c(0.025,0.5,0.975),
 
 launch_shinystan(fit_Ricker0)
 
-# epsilon_M ~ gauge_spring, s_MS ~ hpc_release + pdo_nov_jan
+# epsilon_M ~ flow 
+# s_MS ~ HPC + PDO
 
 ## @knitr fit_Ricker_allcovars
 fit_Ricker1 <- salmonIPM(fish_data = fish_data, 
                          env_data = list(M = select(env_data, flow), 
                                          MS = select(env_data, c(HPC, PDO))),
                          stan_model = "IPM_SMaS_np", SR_fun = "Ricker", conditionGRonMS = TRUE,
-                     pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M", "epsilon_MS"), log_lik = TRUE, 
-                     chains = 3, cores = 3, iter = 1500, warmup = 500,
+                     pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
+                     chains = 3, iter = 1500, warmup = 500,
                      control = list(adapt_delta = 0.99, max_treedepth = 13))
+
+# epsilon_M ~ flow 
+# s_MS ~ HPC + HPC^2 + PDO
 
 ## @knitr print_Ricker_allcovars
 print(fit_Ricker1, probs = c(0.025,0.5,0.975),
-      pars = c("epsilon_M", "epsilon_MS","p_M","q_M","s_MS","p_MS","q_MS","q_GR",
+      pars = c("epsilon_M","p_M","q_M","s_MS","p_MS","q_MS","q_GR",
                "M","S","R","B_rate_all","LL"), 
       include = FALSE)
 ## @knitr
 
 launch_shinystan(fit_Ricker1)
+
+## @knitr fit_Ricker_allcovars_HPCquad
+fit_Ricker2 <- salmonIPM(fish_data = fish_data, 
+                         env_data = list(M = select(env_data, flow), 
+                                         MS = select(env_data, c(HPC, HPC2, PDO))),
+                         stan_model = "IPM_SMaS_np", SR_fun = "Ricker", conditionGRonMS = TRUE,
+                         pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
+                         chains = 3, iter = 1500, warmup = 500,
+                         control = list(adapt_delta = 0.99, max_treedepth = 14))
+
+## @knitr print_Ricker_allcovars_HPCquad
+print(fit_Ricker2, probs = c(0.025,0.5,0.975),
+      pars = c("epsilon_M","p_M","q_M","s_MS","p_MS","q_MS","q_GR",
+               "M","S","R","B_rate_all","LL"), 
+      include = FALSE)
+## @knitr
+
+launch_shinystan(fit_Ricker2)
 
 #--------------------------------------------------------------
 # Model selection using LOO
@@ -637,31 +702,114 @@ dev.off()
 # Posteriors of regression coefficients, marginal effect plots
 #-------------------------------------------------------------------
 
-mod_name <- "fit_Ricker1"
+mod_name <- "fit_Ricker2"
 
-env <- select(env_data, c(gauge_spring, hpc_release, pdo_nov_jan))
-beta <- do.call(as.data.frame, list(as.name(mod_name), c("beta_M","beta_MS")))
+## @knitr plot_covariate_marginal_effects
+env <- select(env_data, c(flow, HPC, PDO))
+life_stage <- c(flow = "M", HPC = "MS", PDO = "MS")
+beta <- do.call(as.data.frame, list(as.name(mod_name), c("beta_M","beta_MS"))) %>% 
+  rename(flow = `beta_M[1,1]`, HPC = `beta_MS[1,1]`, HPC2 = `beta_MS[1,2]`, PDO = `beta_MS[1,3]`)
+mu_MS <- do.call(as.data.frame, list(as.name(mod_name), "mu_MS"))
+X <- as.data.frame(apply(env, 2, function(x) 
+  seq(min(x) - diff(range(x))*0.02, max(x) + diff(range(x))*0.02, length.out = 500)))
+marg_eff <- list(flow = outer(beta$flow, X$flow, "*"),
+                 HPC = list(plogis(outer(beta$HPC, X$HPC, "*") + outer(beta$HPC2, X$HPC^2, "*") +
+                                     qlogis(mu_MS[,1])),
+                            plogis(outer(beta$HPC, X$HPC, "*") + outer(beta$HPC2, X$HPC^2, "*") +
+                                     qlogis(mu_MS[,2]))),
+                 PDO = list(plogis(outer(beta$PDO, X$PDO, "*") + qlogis(mu_MS[,1])),
+                            plogis(outer(beta$PDO, X$PDO, "*") + qlogis(mu_MS[,2]))))
+epsilon_M <- do.call(extract1, list(as.name(mod_name), "epsilon_M"))
+anomaly_M <- beta$flow*env$flow + epsilon_M
+SAR <- do.call(extract1, list(as.name(mod_name), "s_MS"))
+X <- sweep(sweep(X, 2, attributes(cov_scl)[["scaled:scale"]], "*"),
+           2, attributes(cov_scl)[["scaled:center"]], "+")
 
-dev.new(width = 10, height = 7)
-# png(filename=here("analysis","results",paste0("beta_M_MS_",mod_name,".png")),
-#     width=10, height=7, units="in", res=200, type="cairo-png")
+c2 <- viridis(5)[2]
+c3 <- viridis(5)[4]
+c3t <- transparent(c3, trans.val = 0.6)
 
-par(mfrow = c(1,2), mar = c(5.1,2,3,1), oma = c(0,1,0,0))
+# dev.new(width = 8, height = 5)
+png(filename=here("analysis","results",paste0("beta_M_MS_",mod_name,".png")),
+    width=8, height=5, units="in", res=300, type="cairo-png")
 
-# Posterior of log(alpha)
-hist(log(alpha), 15, prob = TRUE,  border = "white",
-     las = 1, cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5, yaxs = "i", yaxt = "n",
-     xlab = bquote(log(alpha)), ylab = "", main = "Intrinsic productivity")
-curve(dnorm(x,2,2), add = TRUE)
-box(bty = "l")
-mtext("Probability density", side = 2, line = 1, cex = par("cex")*1.5)
+par(mfcol = c(2,3), mar = c(5,5,1,1))
 
+for(j in names(env))
+{
+  # Posterior of beta
+  dd <- density(beta[,j])
+  sgn <- median(beta[,j]) > 0
+  plot(dd$x, dd$y, type = "l", lwd = 2, las = 1, cex.lab = 1.5, cex.axis = 1.2, cex.main = 1.5, 
+       xlim = switch(j, HPC = range(beta$HPC, beta$HPC2), range(beta[,j])), 
+       ylim = switch(j, HPC = range(dd$y, density(beta$HPC2)$y), range(dd$y)), yaxt = "n", 
+       xlab = bquote(beta[.(j)]), ylab = "", main = "", bty = "n")
+  # curve(dnorm(x,0,5), add = TRUE)
+  box(bty = "l")
+  mtext("Probability density", side = 2, line = 1, cex = par("cex")*1.5)
+  abline(v = 0, lwd = 0.5)
+  legend(ifelse(sgn, "topright", "topleft"), bty = "n", inset = c(-0.04,0), xpd = NA,
+         legend = bquote(italic(P)(beta ~ .(ifelse(sgn, ">", "<")) ~ 0) == 
+                           .(round(ifelse(sgn, mean(beta[,j] > 0), mean(beta[,j] < 0)), 2))))
+  if(j == "HPC")
+  {
+    dd <- density(beta$HPC2)
+    sgn <- median(beta$HPC2) > 0
+    lines(dd$x, dd$y, lwd = 2, col = "darkgray")
+    legend(ifelse(sgn, "topright", "topleft"), bty = "n", inset = c(-0.04,0.1), xpd = NA,
+           legend = bquote(italic(P)(beta ~ .(ifelse(sgn, ">", "<")) ~ 0) == 
+                             .(round(ifelse(sgn, mean(beta$HPC2 > 0), mean(beta$HPC2 < 0)), 2))),
+           text.col = "darkgray")
+  }
+  
+  # Marginal effect plot with states overlaid
+  eff <- switch(life_stage[j], M = marg_eff[[j]], MS = marg_eff[[j]][[1]])
+  state <- switch(life_stage[j], M = anomaly_M, MS = SAR[,,1])
+  c1 <- switch(life_stage[j], M = transparent("black", trans.val = 0.2), MS = c2)
+  c1t <- transparent(c1, trans.val = 0.6) 
+  plot(X[,j], colMedians(eff), type = "l", lwd = 3, col = c1,
+       las = 1, cex.lab = 1.5, cex.axis = 1.2, xlab = capitalize(j), 
+       ylab = switch(life_stage[j], 
+                     M = "Recruitment anomaly", 
+                     MS = "Smolt-to-adult survival"),
+       ylim = switch(life_stage[j], 
+                     M = range(colQuantiles(eff, probs = c(0.025, 0.975)),
+                               colQuantiles(state, probs = c(0.025, 0.975))), 
+                     MS = range(0, apply(SAR, 2:3, quantile, 0.975))))
+  polygon(c(X[,j], rev(X[,j])),
+          c(colQuantiles(eff, probs = 0.025), rev(colQuantiles(eff, probs = 0.975))),
+          col = c1t, border = NA)
+  points(cov_adj[,j], colMedians(state), pch = 16, cex = 1.2, col = c1)
+  segments(x0 = cov_adj[,j], y0 = colQuantiles(state, probs = 0.025), 
+           y1 = colQuantiles(state, probs = 0.975), col = c1)
+  if(life_stage[j] == "MS")
+  {
+    eff <- marg_eff[[j]][[2]]
+    state <- SAR[,,2]
+    lines(X[,j], colMedians(eff), lwd = 3, col = c3)
+    polygon(c(X[,j], rev(X[,j])),
+            c(colQuantiles(eff, probs = 0.025), rev(colQuantiles(eff, probs = 0.975))),
+            col = c3t, border = NA)
+    points(cov_adj[,j], colMedians(state), pch = 16, cex = 1.2, col = c3)
+    segments(x0 = cov_adj[,j], y0 = colQuantiles(state, probs = 0.025), 
+             y1 = colQuantiles(state, probs = 0.975), col = c3)
+  }
+  if(life_stage[j] == "M")
+  {
+    legend("topright", legend = c("state", "marginal effect"), text.col = "white",
+           pch = c(16,NA), pt.cex = 1.2, lwd = c(1,3), bty = "n")
+    legend("topright", legend = c("state", "marginal effect"), 
+           lwd = c(NA,10), col = c1t, bty = "n")
+  }
+  if(j == "HPC")
+    legend("topleft", title = "smolt age", legend = 2:3, 
+           lty = 1, lwd = 3, col = c(c2,c3), bty = "n")
+}
 
-
-
+rm(list = c("mod_name","X","beta","mu_MS","anomaly_M","epsilon_M","dd",
+            "marg_eff","SAR","c2","c3","c3t","life_stage","state","eff","sgn"))
+## @knitr
 dev.off()
-
-
 
 
 #--------------------------------------------------------
