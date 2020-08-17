@@ -414,7 +414,7 @@ dev.off()
 # Time series of observed and estimated smolts and spawners
 #-------------------------------------------------------------------------
 
-mod_name <- "fit_Ricker0"
+mod_name <- "fit_Ricker2"
 
 # dev.new(width = 7, height = 7)
 png(filename=here("analysis","results",paste0("M_S_",mod_name,".png")),
