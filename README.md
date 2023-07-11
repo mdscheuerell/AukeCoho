@@ -5,7 +5,7 @@ This is the development site for an integrated population model for Auke Creek c
 * [David Tallmon](http://www.uas.alaska.edu/dir/datallmon.html) (University of Alaska Southeast)
 * [Scott Vulstek](https://www.researchgate.net/profile/Scott_Vulstek) (Alaska Fisheries Science Center)
 * [Mark Scheuerell](https://faculty.washington.edu/scheuerl/) (Northwest Fisheries Science Center)
-* [Eric Buhle](mailto:eric.buhle@noaa.gov) (Biomark Applied Biological Services)
+* [Eric Buhle](mailto:eric.buhle@noaa.gov) (Mount Hood Environmental, Northwest Fisheries Science Center)
 
 # Background
 
