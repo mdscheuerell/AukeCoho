@@ -60,15 +60,15 @@ fish_data <- left_join(fish_data, env_data, by = "year")
 
 ## @knitr fit_exp_nocovars
 fit_exp0 <- salmonIPM(stan_model = "IPM_SMaS_np", SR_fun = "exp", conditionGRonMS = TRUE,
+                      prior = list(tau_M ~ gnormal(0.2, 0.16, 30), 
+                                   tau_S ~ gnormal(0.3, 0.26, 30)),
                       fish_data = fish_data, 
                       pars = "Mmax", include = FALSE, log_lik = TRUE, 
-                      chains = 3, iter = 1500, warmup = 500,
+                      chains = 4, iter = 1500, warmup = 500,
                       control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_exp_nocovars
-print(fit_exp0,  probs = c(0.025,0.5,0.975),
-      pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate","LL"), 
-      include = FALSE)
+print(fit_exp0, pars = stan_pars("IPM_SMaS_np", "hyper"), probs = c(0.025, 0.5, 0.975))
 ## @knitr
 
 launch_shinystan(fit_exp0)
@@ -78,16 +78,16 @@ launch_shinystan(fit_exp0)
 
 ## @knitr fit_exp_allcovars
 fit_exp1 <- salmonIPM(stan_model = "IPM_SMaS_np", SR_fun = "exp", conditionGRonMS = TRUE,
+                      prior = list(tau_M ~ gnormal(0.2, 0.16, 30), 
+                                   tau_S ~ gnormal(0.3, 0.26, 30)),
                       par_models = list(M ~ flow, s_MS ~ HPC + PDO),
                       fish_data = fish_data, 
                       pars = "Mmax", include = FALSE, log_lik = TRUE, 
-                      chains = 3, iter = 1500, warmup = 500,
+                      chains = 4, iter = 1500, warmup = 500,
                       control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_exp_allcovars
-print(fit_exp1,  probs = c(0.025,0.5,0.975),
-      pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","B_rate","LL"), 
-      include = FALSE)
+print(fit_exp1, pars = stan_pars("IPM_SMaS_np", "hyper"), probs = c(0.025, 0.5, 0.975))
 ## @knitr
 
 launch_shinystan(fit_exp1)
@@ -98,16 +98,16 @@ launch_shinystan(fit_exp1)
 
 ## @knitr fit_exp_allcovars_HPCquad
 fit_exp2 <- salmonIPM(stan_model = "IPM_SMaS_np", SR_fun = "exp", conditionGRonMS = TRUE,
+                      prior = list(tau_M ~ gnormal(0.2, 0.16, 30), 
+                                   tau_S ~ gnormal(0.3, 0.26, 30)),
                       par_models = list(M ~ flow, s_MS ~ HPC + HPC2 + PDO),
                       fish_data = fish_data, 
                       pars = "Mmax", include = FALSE, log_lik = TRUE, 
-                      chains = 3, iter = 1500, warmup = 500,
+                      chains = 4, iter = 1500, warmup = 500,
                       control = list(adapt_delta = 0.99, max_treedepth = 14))
 
 ## @knitr print_exp_allcovars_HPCquad
-print(fit_exp2,  probs = c(0.025,0.5,0.975),
-      pars = c("p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate","LL"), 
-      include = FALSE)
+print(fit_exp2, pars = stan_pars("IPM_SMaS_np", "hyper"), probs = c(0.025, 0.5, 0.975))
 ## @knitr
 
 launch_shinystan(fit_exp2)
@@ -120,15 +120,15 @@ launch_shinystan(fit_exp2)
 
 ## @knitr fit_BH_nocovars
 fit_BH0 <- salmonIPM(stan_model = "IPM_SMaS_np", SR_fun = "BH", conditionGRonMS = TRUE,
+                     prior = list(tau_M ~ gnormal(0.2, 0.16, 30), 
+                                  tau_S ~ gnormal(0.3, 0.26, 30)),
                      fish_data = fish_data, 
                      pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE,
-                     chains = 3, iter = 1500, warmup = 500,
+                     chains = 4, iter = 1500, warmup = 500,
                      control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_BH_nocovars
-print(fit_BH0, probs = c(0.025,0.5,0.975),
-      pars = c("epsilon_M","p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate","LL"), 
-      include = FALSE)
+print(fit_BH0, pars = stan_pars("IPM_SMaS_np", "hyper"), probs = c(0.025, 0.5, 0.975))
 ## @knitr
 
 launch_shinystan(fit_BH0)
@@ -138,16 +138,16 @@ launch_shinystan(fit_BH0)
 
 ## @knitr fit_BH_allcovars
 fit_BH1 <- salmonIPM(stan_model = "IPM_SMaS_np", SR_fun = "BH", conditionGRonMS = TRUE,
+                     prior = list(tau_M ~ gnormal(0.2, 0.16, 30), 
+                                  tau_S ~ gnormal(0.3, 0.26, 30)),
                      par_models = list(M ~ flow, s_MS ~ HPC + PDO),
                      fish_data = fish_data, 
                      pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
-                     chains = 3, iter = 1500, warmup = 500,
+                     chains = 4, iter = 1500, warmup = 500,
                      control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_BH_allcovars
-print(fit_BH1,  probs = c(0.025,0.5,0.975),
-      pars = c("epsilon_M","p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate","LL"), 
-      include = FALSE)
+print(fit_BH1, pars = stan_pars("IPM_SMaS_np", "hyper"), probs = c(0.025, 0.5, 0.975))
 ## @knitr
 
 launch_shinystan(fit_BH1)
@@ -157,16 +157,16 @@ launch_shinystan(fit_BH1)
 
 ## @knitr fit_BH_allcovars_HPCquad
 fit_BH2 <- salmonIPM(stan_model = "IPM_SMaS_np", SR_fun = "BH", conditionGRonMS = TRUE,
+                     prior = list(tau_M ~ gnormal(0.2, 0.16, 30), 
+                                  tau_S ~ gnormal(0.3, 0.26, 30)),
                      par_models = list(M ~ flow, s_MS ~ HPC + HPC2 + PDO),
                      fish_data = fish_data, 
                      pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
-                     chains = 3, iter = 1500, warmup = 500,
+                     chains = 4, iter = 1500, warmup = 500,
                      control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_BH_allcovars_HPCquad
-print(fit_BH2,  probs = c(0.025,0.5,0.975),
-      pars = c("epsilon_M","p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate","LL"), 
-      include = FALSE)
+print(fit_BH2, pars = stan_pars("IPM_SMaS_np", "hyper"), probs = c(0.025, 0.5, 0.975))
 ## @knitr
 
 launch_shinystan(fit_BH2)
@@ -179,15 +179,15 @@ launch_shinystan(fit_BH2)
 
 ## @knitr fit_Ricker_nocovars
 fit_Ricker0 <- salmonIPM(stan_model = "IPM_SMaS_np", SR_fun = "Ricker", conditionGRonMS = TRUE,
+                         prior = list(tau_M ~ gnormal(0.2, 0.16, 30), 
+                                      tau_S ~ gnormal(0.3, 0.26, 30)),
                          fish_data = fish_data, 
                          pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE,
-                         chains = 3, iter = 1500, warmup = 500,
+                         chains = 4, iter = 1500, warmup = 500,
                          control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 ## @knitr print_Ricker_nocovars
-print(fit_Ricker0, probs = c(0.025,0.5,0.975),
-      pars = c("epsilon_M","p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate","LL"), 
-      include = FALSE)
+print(fit_Ricker0, pars = stan_pars("IPM_SMaS_np", "hyper"), probs = c(0.025, 0.5, 0.975))
 ## @knitr
 
 launch_shinystan(fit_Ricker0)
@@ -197,35 +197,35 @@ launch_shinystan(fit_Ricker0)
 
 ## @knitr fit_Ricker_allcovars
 fit_Ricker1 <- salmonIPM(stan_model = "IPM_SMaS_np", SR_fun = "Ricker", conditionGRonMS = TRUE,
+                         prior = list(tau_M ~ gnormal(0.2, 0.16, 30), 
+                                      tau_S ~ gnormal(0.3, 0.26, 30)),
                          par_models = list(M ~ flow, s_MS ~ HPC + PDO),
                          fish_data = fish_data, 
                          pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
-                         chains = 3, iter = 1500, warmup = 500,
+                         chains = 4, iter = 1500, warmup = 500,
                          control = list(adapt_delta = 0.99, max_treedepth = 13))
 
 # M ~ flow 
 # s_MS ~ HPC + HPC^2 + PDO
 
 ## @knitr print_Ricker_allcovars
-print(fit_Ricker1, probs = c(0.025,0.5,0.975),
-      pars = c("epsilon_M","p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate","LL"), 
-      include = FALSE)
+print(fit_Ricker1, pars = stan_pars("IPM_SMaS_np", "hyper"), probs = c(0.025, 0.5, 0.975))
 ## @knitr
 
 launch_shinystan(fit_Ricker1)
 
 ## @knitr fit_Ricker_allcovars_HPCquad
 fit_Ricker2 <- salmonIPM(stan_model = "IPM_SMaS_np", SR_fun = "Ricker", conditionGRonMS = TRUE,
+                         prior = list(tau_M ~ gnormal(0.2, 0.16, 30), 
+                                      tau_S ~ gnormal(0.3, 0.26, 30)),
                          par_models = list(M ~ flow, s_MS ~ HPC + HPC2 + PDO),
                          fish_data = fish_data, 
                          pars = c(stan_pars("IPM_SMaS_np"), "epsilon_M"), log_lik = TRUE, 
-                         chains = 3, iter = 1500, warmup = 500,
+                         chains = 4, iter = 1500, warmup = 500,
                          control = list(adapt_delta = 0.99, max_treedepth = 14))
 
 ## @knitr print_Ricker_allcovars_HPCquad
-print(fit_Ricker2, probs = c(0.025,0.5,0.975),
-      pars = c("epsilon_M","p_M","q_M","s_MS","p_MS","q_MS","q_GR","M","S","R","B_rate","LL"), 
-      include = FALSE)
+print(fit_Ricker2, pars = stan_pars("IPM_SMaS_np", "hyper"), probs = c(0.025, 0.5, 0.975))
 ## @knitr
 
 launch_shinystan(fit_Ricker2)
